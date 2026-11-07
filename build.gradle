@@ -1,0 +1,183 @@
+plugins {
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+	id 'maven-publish'
+}
+
+// One codebase, one jar per Minecraft version: ./gradlew build -Pmc=26.3 (see mc.gradle)
+apply from: 'mc.gradle'
+
+// The version, built from its parts in gradle.properties (SemVer): 1.0.0-beta.1, or 1.0.0 for a release; only an alpha build, which stays with the developer, has its build in it: 1.0.1-alpha+build.31.
+// It goes into fabric.mod.json, where the mod reads it to show it. The build number of every jar is kept inside it too, for the log.
+def modStage = project.mod_stage.trim()
+def stageNumber = project.mod_stage_number.trim()
+if (!(modStage in ['alpha', 'beta', 'release'])) {
+	throw new GradleException("mod_stage must be alpha, beta or release, not '${modStage}'")
+}
+if (modStage == 'beta' && !(stageNumber ==~ /\d+/)) {
+	throw new GradleException("A beta needs mod_stage_number (1, 2, ...)")
+}
+def stagePart = modStage == 'alpha' ? '-alpha' : modStage == 'beta' ? "-beta.${stageNumber}" : ''
+def plainVersion = "${project.mod_version.trim()}${stagePart}"
+def buildNumber = project.build_number.trim()
+version = modStage == 'alpha' ? "${plainVersion}+build.${buildNumber}" : plainVersion
+
+repositories {
+	// Lumio and its API, published with ./gradlew publishToMavenLocal in the Lumio project
+	mavenLocal()
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	// The add-on API: compiled against only, never inside this jar. Lumio brings it at runtime, as a nested jar.
+	compileOnly "dev.tim1337:lumio-api${project.mcArtifactSuffix}:${project.lumio_api_version}"
+	// Lumio itself, only to run the game in development (with its API nested inside, as in a real install). Without
+	// -PwithoutLumio, which shows what Fabric says when the add-on is installed alone.
+	if (!project.hasProperty('withoutLumio')) {
+		localRuntime("dev.tim1337:lumio${project.mcArtifactSuffix}:${project.lumio_version}") {
+			transitive = false
+		}
+	}
+
+	// Unit tests of the plain logic (parsing, profit history, slayer owners). Some build the add-on's features, which need Lumio
+	// behind the API, so the tests run with it; test only, never in the mod jar.
+	testImplementation "dev.tim1337:lumio${project.mcArtifactSuffix}:${project.lumio_version}"
+	testImplementation "dev.tim1337:lumio-api${project.mcArtifactSuffix}:${project.lumio_api_version}"
+	testImplementation platform("org.junit:junit-bom:5.11.4")
+	testImplementation "org.junit.jupiter:junit-jupiter"
+	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+// Local client game tests (src/gametest, not part of the repository): configured in gametest.gradle when it exists.
+if (file("gametest.gradle").exists()) {
+	apply from: "gametest.gradle"
+}
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+	inputs.property "buildNumber", buildNumber
+
+	filesMatching("fabric.mod.json") {
+		expand "version": version, "build": buildNumber
+	}
+}
+
+test {
+	useJUnitPlatform()
+	systemProperty "lumio.updateSettingKeys", project.hasProperty("updateSettingKeys")
+}
+
+// Every jar is called lumio-skyblock-<version>+mc<Minecraft version>.jar: lumio-skyblock-1.0.0-beta.1+mc26.3.jar; an alpha build lumio-skyblock-<version>-mc<Minecraft version>.jar.
+base {
+	archivesName = 'lumio-skyblock'
+}
+tasks.withType(AbstractArchiveTask).configureEach {
+	archiveVersion = modStage == 'alpha' ? "${version}-mc${project.minecraft_version}" : "${version}+mc${project.minecraft_version}"
+}
+
+// ./gradlew deployJar copies the add-on jar into the game's mods folder (deploy_dir in the git-ignored local.properties), replacing the older
+// add-on jar there, and then raises build_number in gradle.properties by 1, so every jar that is run has its own build number.
+// Plain builds, compile checks and tests never change it.
+def localProperties = new Properties()
+def localFile = file('local.properties')
+if (localFile.exists()) {
+	localFile.withReader('UTF-8') { localProperties.load(it) }
+}
+// the base version's folder is deploy_dir, another version's deploy_dir_<version>
+def deployDir = localProperties.getProperty(project.mcOther ? "deploy_dir_${project.mcVersion}" : 'deploy_dir')
+def raisesBuild = !project.mcOther
+def propertiesFile = file('gradle.properties')
+tasks.register('deployJar') {
+	group = 'build'
+	description = 'Copies the add-on jar into the game\'s mods folder and raises the build number.'
+	def jarFile = tasks.named('jar').flatMap { it.archiveFile }
+	inputs.file(jarFile)
+	outputs.upToDateWhen { false }
+	doLast {
+		if (deployDir == null || deployDir.isBlank()) {
+			throw new GradleException('Set the folder of the game\'s mods in local.properties (deploy_dir, or deploy_dir_<version> for another Minecraft version)')
+		}
+		def mods = new File(deployDir)
+		if (!mods.isDirectory()) {
+			throw new GradleException("The mods folder ${mods} does not exist")
+		}
+		// a jar replaced under the running game breaks it when it loads a class later
+		def running = ProcessHandle.allProcesses().anyMatch { process ->
+			process.info().command().map { it.toLowerCase(Locale.ROOT).endsWith('javaw.exe') }.orElse(false)
+		}
+		if (running) {
+			throw new GradleException('Minecraft (javaw) is running: close it first, then deploy')
+		}
+		def jar = jarFile.get().asFile
+		// two jars of the same mod do not load: only the older jars of this add-on go, never Lumio's
+		mods.listFiles().findAll { it.name ==~ /lumio-skyblock-\d.*\.jar/ }.each { it.delete() }
+		java.nio.file.Files.copy(jar.toPath(), new File(mods, jar.name).toPath())
+		// the jars of one build have one number: deploy another version first (-Pmc=...), the base version last, which raises it
+		if (!raisesBuild) {
+			println "Deployed ${jar.name} to ${mods}"
+			return
+		}
+		// the next jar gets the next number; the rest of gradle.properties (comments, layout) stays as it is
+		def text = propertiesFile.getText('ISO-8859-1')
+		def matcher = text =~ /(?m)^build_number=(\d+)/
+		if (!matcher.find()) {
+			throw new GradleException('build_number is missing in gradle.properties')
+		}
+		def next = (matcher.group(1) as int) + 1
+		propertiesFile.write(text.replaceFirst(/(?m)^build_number=\d+/, "build_number=${next}"), 'ISO-8859-1')
+		println "Deployed ${jar.name} to ${mods}; the next build is ${next}"
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 25
+}
+
+java {
+	withSourcesJar()
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}
+
+jar {
+	def projectName = project.name
+	inputs.property "projectName", projectName
+
+	from("LICENSE") {
+		rename { "${it}_$projectName" }
+	}
+}
+
+publishing {
+	publications {
+		create("mavenJava", MavenPublication) {
+			artifactId = 'lumio-skyblock'
+			from components.java
+			pom {
+				licenses {
+					license {
+						name = 'GPL-3.0-only'
+						url = 'https://www.gnu.org/licenses/gpl-3.0.html'
+					}
+				}
+			}
+		}
+	}
+}
+
+// ./gradlew runClient -PnoGui=true (also for runClientGameTest): Fabric writes why the game cannot start to the log instead of showing a
+// window, so checks without anyone at the screen do not hang (such as -PwithoutLumio).
+if (project.hasProperty('noGui')) {
+	loom {
+		runs {
+			configureEach {
+				vmArg '-Dfabric.noGui=true'
+			}
+		}
+	}
+}
+
+mcPrepareSources()

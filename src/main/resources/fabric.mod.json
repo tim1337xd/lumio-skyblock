@@ -1,0 +1,36 @@
+{
+	"schemaVersion": 1,
+	"id": "lumio-skyblock",
+	"version": "${version}",
+	"name": "Lumio: Hypixel SkyBlock",
+	"description": "The Hypixel SkyBlock add-on of Lumio: panels for your pet, equipment and profits, slayer, mining, farming and fishing helpers, the item list and the storage overlay, all in Lumio's look. Needs Lumio.",
+	"authors": [
+		"tim1337"
+	],
+	"license": "GPL-3.0-only",
+	"icon": "assets/lumio-skyblock/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"lumio": [
+			"dev.tim1337.lumio.skyblock.SkyBlockAddon"
+		]
+	},
+	"mixins": [
+		"lumio-skyblock.mixins.json"
+	],
+	"depends": {
+		"lumio": ">=1.0.0-beta.1",
+		"lumio-api": ">=1.7.0 <2.0.0",
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.2",
+		"java": ">=25",
+		"fabric-api": "*"
+	},
+	"custom": {
+		"lumio:build": "${build}",
+		"lumio:api": ">=1.4.0 <2.0.0",
+		"modmenu": {
+			"parent": "lumio"
+		}
+	}
+}

@@ -1,0 +1,80 @@
+# What changed its name from Minecraft 26.2 to 26.3; see mc.gradle.
+
+# the render classes moved into the package com.mojang.renderpearl
+com.mojang.blaze3d.pipeline.BindGroupLayout => com.mojang.renderpearl.api.pipeline.BindGroupLayout
+com.mojang.blaze3d.pipeline.BlendFunction => com.mojang.renderpearl.api.pipeline.BlendFunction
+com.mojang.blaze3d.pipeline.ColorTargetState => com.mojang.renderpearl.api.pipeline.ColorTargetState
+com.mojang.blaze3d.pipeline.DepthStencilState => com.mojang.renderpearl.api.pipeline.DepthStencilState
+com.mojang.blaze3d.pipeline.RenderPipeline => com.mojang.renderpearl.api.pipeline.RenderPipeline
+com.mojang.blaze3d.systems.CommandEncoder => com.mojang.renderpearl.api.commands.CommandEncoder
+com.mojang.blaze3d.systems.GpuQueryPool => com.mojang.renderpearl.api.commands.GpuQueryPool
+com.mojang.blaze3d.systems.RenderPass => com.mojang.renderpearl.api.commands.RenderPass
+com.mojang.blaze3d.platform.CompareOp => com.mojang.renderpearl.api.pipeline.CompareOp
+com.mojang.blaze3d.textures.FilterMode => com.mojang.renderpearl.api.textures.FilterMode
+com.mojang.blaze3d.textures.GpuSampler => com.mojang.renderpearl.api.textures.GpuSampler
+com.mojang.blaze3d.textures.GpuTextureView => com.mojang.renderpearl.api.textures.GpuTextureView
+com.mojang.blaze3d.textures.GpuTexture => com.mojang.renderpearl.api.textures.GpuTexture
+com.mojang.blaze3d.buffers.GpuBufferSlice => com.mojang.renderpearl.api.buffers.GpuBufferSlice
+com.mojang.blaze3d.buffers.GpuBuffer => com.mojang.renderpearl.api.buffers.GpuBuffer
+com.mojang.blaze3d.vertex.VertexFormat => com.mojang.renderpearl.api.vertex.VertexFormat
+com.mojang.blaze3d.GpuFormat => com.mojang.renderpearl.api.GpuFormat
+com.mojang.blaze3d.PrimitiveTopology => com.mojang.renderpearl.api.pipeline.PrimitiveTopology
+
+# the same names in the strings of mixins
+Lcom/mojang/blaze3d/pipeline/RenderPipeline; => Lcom/mojang/renderpearl/api/pipeline/RenderPipeline;
+Lcom/mojang/blaze3d/systems/RenderPass; => Lcom/mojang/renderpearl/api/commands/RenderPass;
+Lcom/mojang/blaze3d/textures/GpuTextureView; => Lcom/mojang/renderpearl/api/textures/GpuTextureView;
+Lcom/mojang/blaze3d/textures/GpuSampler; => Lcom/mojang/renderpearl/api/textures/GpuSampler;
+Lcom/mojang/blaze3d/buffers/GpuBufferSlice; => Lcom/mojang/renderpearl/api/buffers/GpuBufferSlice;
+
+# what mixins aim at
+"apply(Lnet/minecraft/client/renderer/ShaderManager$Configs;Lnet/minecraft/server/packs/resources/ResourceManager;Lnet/minecraft/util/profiling/ProfilerFiller;)V" => "apply(Lcom/mojang/renderpearl/api/device/GpuDevice;Lnet/minecraft/client/renderer/ShaderManager$PendingResults;)V"
+~ IIILnet/minecraft/client/renderer/texture/TextureAtlasSprite;I[^"]*\)V" => IIILnet/minecraft/client/renderer/texture/UvMapping;I)V"
+
+# render calls
+~ \.bindTexture\( => .setUniform(
+~ \.withSampler\("(\w+)"\) => .withUniform("$1", com.mojang.renderpearl.api.pipeline.UniformType.COMBINED_IMAGE_SAMPLER)
+~ pass\.setPipeline\(([^;]+)\); => pass.setPipeline(RenderSystem.getCompiledPipeline($1));
+~ , true, GpuFormat\.(\w+)\) => , GpuFormat.$1, GpuFormat.D32_FLOAT)
+~ , false, GpuFormat\.(\w+)\) => , GpuFormat.$1, null)
+~ \.mulPose\(new Quaternionf => .rotate(new Quaternionf
+~ \.mulPose\(Axis => .rotate(Axis
+import net.minecraft.client.renderer.rendertype.OutputTarget; =>
+~ \s*\.setOutputTarget\(OutputTarget\.MAIN_TARGET\) =>
+
+# what is submitted for models lost a parameter
+, OverlayTexture.NO_OVERLAY, color, null) => , OverlayTexture.NO_OVERLAY, color)
+, OverlayTexture.NO_OVERLAY, null, color, null) => , OverlayTexture.NO_OVERLAY, null, color)
+argb(style.rgb(), 0.6f * body), null); => argb(style.rgb(), 0.6f * body));
+DefaultTooltipPositioner.INSTANCE, null); => DefaultTooltipPositioner.INSTANCE, null, false);
+
+# the swing has a class of its own
+~ \bclient\.player\.swinging\b => client.player.isSwinging()
+~ \bplayer\.swinging\b => player.isSwinging()
+player.swingingArm == InteractionHand.MAIN_HAND => player.getCurrentSwing().hand() == InteractionHand.MAIN_HAND
+player.getAttackAnim( => player.getSwingAnimation(
+
+# classes and packets of the game
+~ \bEnderMan\b => Enderman
+packet.getX() => packet.x()
+packet.getZ() => packet.z()
+
+# screens of the game
+~ new OptionsScreen\(([^;]*), false\) => new OptionsScreen($1)
+~ client\.player\.swing\(InteractionHand\.MAIN_HAND\) => client.player.swing(InteractionHand.MAIN_HAND, client.player.getMainHandItem().getAttackAnimation(), true)
+, toggle(options.rawMouseInput(), translated("options.rawMouseInput")) =>
+
+# keys and the mouse: the game went from GLFW to SDL
+InputConstants.Type.KEYSYM => InputConstants.Type.KEYBOARD
+InputConstants.KEY_LSUPER => InputConstants.KEY_LGUI
+InputConstants.KEY_RSUPER => InputConstants.KEY_RGUI
+
+# the window, links and folders
+~ client\.getWindow\(\)\.isFullscreen\(\) => client.options.fullscreen().get()
+Util.getPlatform().openUri( => com.mojang.blaze3d.Blaze3D.openUri(
+Util.getPlatform().openPath( => com.mojang.blaze3d.Blaze3D.openPath(
+
+# resources
+res: "minecraft": "~26.2" => "minecraft": "~26.3"
+
+

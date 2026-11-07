@@ -1,0 +1,45 @@
+name: Bug report
+description: Something does not work as it should
+labels: [bug]
+body:
+  - type: input
+    id: minecraft
+    attributes:
+      label: Minecraft version
+      placeholder: "26.3"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Mod version
+      description: As shown in the menu settings, under About or on the Add-ons page.
+      placeholder: "1.0.0 Beta"
+    validations:
+      required: true
+  - type: textarea
+    id: mods
+    attributes:
+      label: Other mods
+      description: Which other mods are installed. "None" is fine.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: What did you do, what did you expect, and what happened instead?
+      placeholder: |
+        1. Open ...
+        2. Click ...
+        3. Instead of ..., this happens: ...
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log excerpt
+      description: |
+        The part of `logs/latest.log` or the crash report around the problem.
+        **Remove personal data first:** your player name, other players' names, chat, server addresses, and anything from `config/lumio/` such as tokens.
+      render: text

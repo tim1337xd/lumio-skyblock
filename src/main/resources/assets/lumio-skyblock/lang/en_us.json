@@ -1,0 +1,14 @@
+{
+	"key.lumio-skyblock.storage_preview": "Open storage preview",
+	"key.category.lumio-skyblock.mouse_lock": "Lumio: Mouse lock",
+	"key.lumio-skyblock.item_protection": "Protect item",
+	"key.category.lumio-skyblock.item_protection": "Lumio: Item protection",
+	"key.category.lumio-skyblock.item_list": "Lumio: Item list",
+	"key.lumio-skyblock.mouse_lock": "Lock the mouse",
+	"key.lumio-skyblock.item_list_toggle": "Show / hide the item list",
+	"key.lumio-skyblock.item_list_recipe": "Recipes of the item",
+	"key.lumio-skyblock.item_list_usage": "Uses of the item",
+	"key.lumio-skyblock.item_list_favorite": "Favorite item",
+	"key.lumio-skyblock.item_list_wiki": "Wiki page of the item",
+	"key.lumio-skyblock.item_list_craft": "Quick craft the item"
+}

@@ -1,0 +1,62 @@
+# Build output
+.gradle/
+build/
+out/
+bin/
+classes/
+*.class
+
+# IDE files
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.project
+.classpath
+*.launch
+
+# Run and test folders (anchored to the project root, so docs/screenshots/ stays included)
+run/
+/runs/
+/logs/
+/crash-reports/
+/screenshots/
+/saves/
+/config/
+crash-*.txt
+
+# Test output and reports
+/reports/
+/design-review/
+/colored-report/
+/test-screenshots/
+
+# Local client game tests and their Gradle setup
+src/gametest/
+gametest.gradle
+
+# Local backups of src/ between work steps
+backups/
+
+# Temporary folders
+scratchpad/
+/tmp/
+/temp/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local and secret files, logs and JVM dumps
+*.log
+.env
+local.properties
+*.hprof
+*.jfr
+
+# Shared configs from the game; the ones the mod ships stay
+*.lumioconfig
+!src/main/resources/assets/lumio/configs/*.lumioconfig

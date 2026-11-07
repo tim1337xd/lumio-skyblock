@@ -1,0 +1,12 @@
+## Inspiration
+SkyHanni | The ideas behind the SkyBlock panels and trackers, the Experimentation Table helper (with its pick-block clicks) and the dragon tracker, Pet Candy Used, Explosions Hider, the corpse sharing format, the Cocoon Overlay, the enchant colors, Mouse lock and how pet icons tell pets apart.
+SkySoft | Keep Terrain Loaded, the storage overlay and the item list.
+NotEnoughUpdates | The item list and its recipes.
+Bobby | How the world is cached.
+NoammAddons and Odin | The rules for where etherwarp lands.
+Ping Offset Miner | The idea of tick glide and its mining speed default.
+## Parts and services
+Hypixel API | Bazaar prices, items and the mayor.
+Moulberry | Lowest auction prices.
+Coflnet | Auction prices of single items.
+NotEnoughUpdates repository | Every item and its recipes for the item list.

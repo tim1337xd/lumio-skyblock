@@ -1,0 +1,64 @@
+# Builds the add-on and runs the unit tests for each Minecraft version, on every push and release tag. Game tests are local only. It needs Lumio and its API in the
+# local Maven repository, so it first builds them from the public Lumio repository, at the release tag named by lumio_tag in gradle.properties: no package host, no secrets.
+# Only in the public repository: the private one builds against Lumio's unreleased state on the developer's computer.
+name: build
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+# The workflow only reads the repository, whatever the repository's own default is.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: github.repository == 'tim1337xd/Lumio-SkyBlock'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - minecraft: "26.2"
+            arguments: ""
+            jars: addon/build/libs/
+          - minecraft: "26.3"
+            arguments: "-Pmc=26.3"
+            jars: addon/build/mc-26.3/libs/
+    name: Minecraft ${{ matrix.minecraft }}
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v6
+        with:
+          path: addon
+      - name: find the Lumio release to build against
+        id: lumio
+        run: echo "tag=$(grep '^lumio_tag=' addon/gradle.properties | cut -d= -f2)" >> "$GITHUB_OUTPUT"
+      - name: checkout Lumio
+        uses: actions/checkout@v6
+        with:
+          repository: tim1337xd/Lumio
+          ref: ${{ steps.lumio.outputs.tag }}
+          path: lumio
+      - name: validate gradle wrapper
+        uses: gradle/actions/wrapper-validation@v6
+      - name: setup jdk
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'microsoft'
+      - name: publish Lumio and its API to the local Maven repository
+        working-directory: lumio
+        run: |
+          chmod +x ./gradlew
+          ./gradlew publishToMavenLocal ${{ matrix.arguments }}
+      - name: build and test
+        working-directory: addon
+        run: |
+          chmod +x ./gradlew
+          ./gradlew build ${{ matrix.arguments }}
+      - name: capture build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: lumio-skyblock-mc${{ matrix.minecraft }}
+          path: ${{ matrix.jars }}

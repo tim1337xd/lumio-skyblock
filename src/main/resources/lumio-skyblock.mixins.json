@@ -1,0 +1,31 @@
+{
+	"required": true,
+	"package": "dev.tim1337.lumio.skyblock.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"mixins": [],
+	"client": [
+		"ArmorStandModelMixin",
+		"BreakLogMixin",
+		"BreakTraceInventoryMixin",
+		"BreakTracePacketMixin",
+		"BreakTraceStackMixin",
+		"accessor.BreakingBlockAccess",
+		"accessor.ChunkRadiusAccess",
+		"accessor.ContainerScreenAccess",
+		"accessor.GuiStateAccess",
+		"accessor.HeldItemAccess",
+		"accessor.PictureImageAccess",
+		"accessor.RenderPipelinesAccess",
+		"accessor.SlotAccess",
+		"ExplosionParticleMixin",
+		"HeldSlotUpdateMixin",
+		"KeepTerrainChunkCacheMixin",
+		"KeepTerrainPacketMixin",
+		"ProtectionDropMixin",
+		"ProtectionGameModeMixin",
+		"ProtectionLockMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

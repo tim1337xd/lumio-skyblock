@@ -1,0 +1,11 @@
+## 1.0.0 Beta
++ Panels: pet, equipment, arrows, profits with table and dragons
++ Item search with recipes and drops; a calm storage overlay
++ Wardrobe overlay: your character in every armor set
++ Experimentation table: remembers for you, can stop wrong clicks
++ Slayer: phases at your boss, highlights, drops, the beacon
++ Mining, fishing and farming helpers, Break Reset Fix, corpses
++ Item tooltips: market, bazaar and dungeon lines; enchant colors
++ A SkyBlock chat tab, drop toasts and command suggestions
++ Item protection: your best items can't be given away by accident
++ Scoreboard, Speed bar, Etherwarp, Keep Terrain Loaded, hook timer

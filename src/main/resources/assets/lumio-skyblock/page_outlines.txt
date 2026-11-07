@@ -1,0 +1,311 @@
+# How the add-on's pages are laid out: features | Main or Advanced | group | key | name. See PageOutline in the main mod. The saved keys stay; only rows and names move.
+
+# Profit panels: the same page for all of them
+mining_profit, farming_profit, slayer_profit, fishing_profit, corpse_profit, experiment_profit, dragon_profit | Main | Look | look | Style
+mining_profit, farming_profit, slayer_profit, fishing_profit, corpse_profit, experiment_profit, dragon_profit | Main | Look | range
+mining_profit, farming_profit, slayer_profit, fishing_profit, corpse_profit, experiment_profit, dragon_profit | Main | Look | price_mode | Price
+mining_profit, farming_profit, slayer_profit, fishing_profit, corpse_profit, experiment_profit, dragon_profit | Main | Look | top_drops_row | Top drops
+mining_profit, farming_profit, slayer_profit, fishing_profit, corpse_profit, experiment_profit, dragon_profit | Main | Shows | show_chart
+mining_profit, farming_profit, slayer_profit, fishing_profit, corpse_profit, experiment_profit, dragon_profit | Main | Shows | show_per_hour
+mining_profit, farming_profit, slayer_profit, fishing_profit, corpse_profit, experiment_profit, dragon_profit | Main | Shows | show_counts
+mining_profit, farming_profit, slayer_profit, fishing_profit, corpse_profit, experiment_profit, dragon_profit | Main | Appearance | look_row
+mining_profit, farming_profit, slayer_profit, fishing_profit, corpse_profit, experiment_profit, dragon_profit | Advanced | Reset | reset_session | Reset session
+mining_profit, farming_profit, slayer_profit, fishing_profit, corpse_profit, experiment_profit, dragon_profit | Advanced | Reset | reset_today | Reset today
+mining_profit, farming_profit, slayer_profit, fishing_profit, corpse_profit, experiment_profit, dragon_profit | Advanced | Reset | reset_lifetime | Reset all time
+dragon_profit | Advanced | Dragons | eyes_cost
+dragon_profit | Advanced | Dragons | count_leeched
+dragon_profit | Advanced | Dragons | show_last
+
+# Pet
+pet_hud | Main | Look | look
+pet_hud | Main | Look | show_icon
+pet_hud | Main | Shows | show_name
+pet_hud | Main | Shows | show_rarity
+pet_hud | Main | Shows | show_level
+pet_hud | Main | Shows | show_xp_bar
+pet_hud | Main | Shows | show_xp
+pet_hud | Main | Shows | show_item
+pet_hud | Main | Pets menu | highlight_equipped
+pet_hud | Main | Look | rarity_color | Rarity color
+pet_hud | Main | Appearance | look_row
+
+# Equipment
+equipment_hud | Main | Look | direction
+equipment_hud | Main | Look | dividers
+equipment_hud | Main | Look | empty_slots
+equipment_hud | Main | Where | in_inventory
+equipment_hud | Main | Where | over_game
+equipment_hud | Main | Appearance | look_row
+
+# Deployables
+deployables | Main | Look | look
+deployables | Main | Look | show_name
+deployables | Main | Look | only_mine
+deployables | Main | Will-o'-wisp | wisp_range
+deployables | Main | Will-o'-wisp | wisp_out
+deployables | Main | Will-o'-wisp | wisp_sound | Sound
+deployables | Main | Appearance | look_row
+
+# Arrows
+arrows | Main | Arrows | style
+arrows | Main | Arrows | show_when
+arrows | Main | Arrows | warn_at
+arrows | Main | Arrows | sound
+arrows | Main | Appearance | look_row
+
+# Storage
+storage_overlay | Main | Storage | height
+storage_overlay | Main | Storage | columns
+storage_overlay | Main | Storage | show_unseen
+storage_overlay | Main | Background | background
+storage_overlay | Main | Background | background_strength
+storage_overlay | Advanced | Keys | key.lumio-skyblock.storage_preview | Open the overview
+
+# Item list
+item_list | Main | Search | search_lore | Search lore
+item_list | Main | Search | tab_search | Tab focuses search
+item_list | Advanced | Search | right_clear | Right-click clears
+item_list | Main | Search | keep_search | Remember search
+item_list | Main | Look | only_while_searching | Only while searching
+item_list | Main | Look | prices_on_hover
+item_list | Main | Look | favorites_first
+item_list | Main | Look | item_size
+item_list | Advanced | Appearance | search_glow
+item_list | Main | Look | sort
+item_list | Advanced | Search | info_highlight
+item_list | Advanced | Data | info_items
+item_list | Advanced | Data | refresh_items | Refresh items
+item_list | Advanced | Keys | key.lumio-skyblock.item_list_toggle
+item_list | Advanced | Keys | key.lumio-skyblock.item_list_recipe
+item_list | Advanced | Keys | key.lumio-skyblock.item_list_usage
+item_list | Advanced | Keys | key.lumio-skyblock.item_list_favorite
+item_list | Advanced | Keys | key.lumio-skyblock.item_list_wiki
+item_list | Advanced | Keys | key.lumio-skyblock.item_list_craft
+
+# Custom scoreboard
+custom_scoreboard | Main | Lines | parts | Lines
+custom_scoreboard | Main | Text | title_text
+custom_scoreboard | Main | Text | footer_text
+
+# Slayer panel
+slayer_phase | Main | Look | look
+slayer_phase | Main | Shows | show_health
+slayer_phase | Main | Shows | show_phase
+slayer_phase | Main | Shows | show_timer
+slayer_phase | Main | Shows | show_bosses_rate | Bosses per hour
+slayer_phase | Main | Shows | show_avg_kill | Average kill
+slayer_phase | Main | Shows | show_coins_rate | Coins per hour
+slayer_phase | Main | Shows | show_next_boss
+slayer_phase | Main | Shows | show_session_total
+slayer_phase | Main | Carry | carry_mode
+slayer_phase | Main | Carry | carry_name
+slayer_phase | Main | Appearance | look_row
+
+# Boss label
+boss_label | Main | Look | look
+boss_label | Advanced | Look | panel_theme
+boss_label | Main | Look | size
+boss_label | Main | Look | height
+boss_label | Main | Shows | shows
+boss_label | Main | Look | preview
+
+# Highlights
+minibosses | Main | Highlight | highlight
+minibosses | Main | Highlight | boss_highlight
+minibosses | Main | Highlight | drops
+minibosses | Main | Highlight | color
+minibosses | Main | Alert | alert
+minibosses | Main | Alert | sound
+minibosses | Main | Alert | volume
+minibosses | Main | Alert | boss_alert | Also for the boss
+minibosses | Advanced | Alert | preview | Try it
+
+# Sea creatures
+sea_creatures | Main | Look | range
+sea_creatures | Main | Shows | percentages
+sea_creatures | Advanced | General | double_as_two
+sea_creatures | Main | Shows | show_double_hooks
+sea_creatures | Main | Shows | show_per_hour
+sea_creatures | Main | Shows | rarity_colors
+sea_creatures | Main | Shows | show_rare
+sea_creatures | Main | Shows | show_list
+sea_creatures | Main | Look | sort | Sort
+sea_creatures | Main | Look | rows
+sea_creatures | Advanced | Reset | reset_session | Reset session
+sea_creatures | Advanced | Reset | reset_today | Reset today
+sea_creatures | Advanced | Reset | reset_lifetime | Reset all time
+sea_creatures | Main | Appearance | look_row
+
+# Commissions
+commissions_hud | Main | Commissions | keep_done | Keep finished
+commissions_hud | Main | Commissions | highlight_menu | Highlight finished in the menu
+commissions_hud | Main | Appearance | look_row
+
+# Mineshaft pity
+mineshaft_pity | Main | Shows | show_needed | Blocks still to go
+mineshaft_pity | Main | Shows | show_stats | Stats
+mineshaft_pity | Main | Appearance | look_row
+
+# Mining ability
+mining_ability | Main | Look | look
+mining_ability | Main | Look | show_name | Name
+mining_ability | Main | Look | show_icon
+mining_ability | Advanced | General | bar_color
+mining_ability | Advanced | General | ready_color
+mining_ability | Main | Look | show_seconds
+mining_ability | Main | Ready | ready_notice | Alert
+mining_ability | Main | Ready | ready_sound
+mining_ability | Advanced | Ready alert | ready_volume
+mining_ability | Main | Pickobulus | pickobulus
+mining_ability | Main | Pickobulus | pickobulus_ready
+mining_ability | Main | Pickobulus | pickobulus_color
+mining_ability | Main | Pickobulus | pickobulus_full
+mining_ability | Main | Appearance | look_row
+
+# Tick glide
+tick_glide | Main | Counter | show_count | Counter
+tick_glide | Main | Counter | count_size | Size
+tick_glide | Main | Tint | tint
+tick_glide | Main | Tint | tint_strength | Strength
+tick_glide | Main | Tint | mining_color
+tick_glide | Main | Tint | glide_color
+tick_glide | Main | Timing | use_ping
+tick_glide | Main | Timing | gemstone_speed
+tick_glide | Main | Timing | metal_speed
+
+# HotM tree
+hotm_tree_hud | Main | Appearance | look_row
+
+# Pests
+pest_hud | Main | Look | look
+pest_hud | Main | Shows | show_plots
+pest_hud | Main | Shows | show_cooldown
+pest_hud | Main | Shows | show_spray
+pest_hud | Main | Shows | show_last
+pest_hud | Main | Shows | show_visitors
+pest_hud | Advanced | Alerts | custom_cooldown
+pest_hud | Main | Alerts | alert
+pest_hud | Main | Alerts | spawn_alert
+pest_hud | Advanced | Alerts | alert_seconds
+pest_hud | Main | Alerts | alert_sound
+pest_hud | Advanced | Alerts | alert_volume
+pest_hud | Main | Appearance | look_row
+
+# Visitors
+visitor_hud | Main | Shows | show_names | Names
+visitor_hud | Main | Shows | show_next | Next visitor
+visitor_hud | Main | Shows | notify | Alert
+visitor_hud | Main | Appearance | look_row
+
+# Farming panel
+farming_hud | Main | Shows | show_vinyl
+farming_hud | Main | Shows | show_spray | Spray
+farming_hud | Main | Shows | show_phillip
+farming_hud | Main | Shows | show_bpc
+farming_hud | Main | Shows | show_mantid
+farming_hud | Main | Appearance | look_row
+
+# Mouse lock
+mouse_lock | Main | Lock | mode
+mouse_lock | Main | Lock | percent
+mouse_lock | Main | Lock | unlock_on_teleport | Unlock on teleport
+mouse_lock | Main | Lock | notices | Alerts
+mouse_lock | Advanced | Keys | key.lumio-skyblock.mouse_lock
+mouse_lock | Main | Appearance | look_row
+
+# Etherwarp
+etherwarp | Main | Look | mode
+etherwarp | Main | Look | color
+etherwarp | Main | Fails | show_fail
+etherwarp | Main | Fails | fail_color | Color
+etherwarp | Main | Look | full_block
+
+# Drop toasts
+drop_toasts | Main | Drops | show_from
+drop_toasts | Main | Sound | sound
+drop_toasts | Main | Sound | volume
+
+# Enchant colors
+enchant_colors | Main | Colors | preview
+enchant_colors | Main | Colors | ultimate
+enchant_colors | Main | Colors | perfect
+enchant_colors | Main | Colors | great
+enchant_colors | Main | Colors | good
+enchant_colors | Main | Colors | poor
+enchant_colors | Main | Colors | hide_game_lines
+enchant_colors | Main | Style | perfect_look | Perfect style
+enchant_colors | Main | Style | perfect_count
+enchant_colors | Main | Style | perfect_first
+enchant_colors | Main | Style | perfect_second
+enchant_colors | Main | Style | perfect_third
+enchant_colors | Main | Style | perfect_speed
+enchant_colors | Main | Style | ultimate_look | Ultimate style
+enchant_colors | Main | Style | ultimate_count
+enchant_colors | Main | Style | ultimate_first
+enchant_colors | Main | Style | ultimate_second
+enchant_colors | Main | Style | ultimate_third
+enchant_colors | Main | Style | ultimate_speed
+
+# Cocoons
+cocoons | Main | Look | look
+cocoons | Advanced | Look | panel_theme
+cocoons | Main | Look | size
+cocoons | Main | Look | height
+cocoons | Main | Shows | shows
+cocoons | Main | Look | preview
+cocoons | Main | Shows | only_when_i_can | Only when I can
+
+# Developer: shown from About while the debug switch is on
+minibosses | Developer | Developer | drop_debug
+item_tooltip_lines | Developer | Developer | dungeon_data
+
+# Pages that stay as they are, and only take new names
+slayer_helpers | Name | | gummy_reminder | Reminder
+slayer_helpers | Name | | gummy_style | Show in
+voidgloom_helper | Name | | beacon_alert | Alert
+voidgloom_helper | Name | | beacon_highlight | Highlight
+tarantula_helper | Name | | highlight_eggs | Highlight
+tarantula_helper | Name | | egg_color | Color
+corpse_highlight | Name | | hide_looted | Hide looted
+corpse_highlight | Name | | announce | Announce found
+keep_terrain | Name | | delete_saved | Delete saved terrain
+pet_candy | Name | | hide_on_max | Hide on max level
+skyblock_chat_tab | Name | | keep_out_of_all | Keep out of All
+
+# SkyBlock tooltip lines: the rows without a group
+item_tooltip_lines | Main | Lines | lines | Lines
+item_tooltip_lines | Main | Lines | median_span
+item_tooltip_lines | Main | Lines | number_style
+
+# The newer features
+experiments | Main | Superpairs | keep_items
+experiments | Main | Superpairs | highlight_pairs
+experiments | Main | Chronomatron and Ultrasequencer | next_clicks
+experiments | Main | Chronomatron and Ultrasequencer | block_wrong_clicks
+experiments | Main | Shows | info
+experiments | Main | Shows | alerts
+experiments | Advanced | Shows | guardian
+experiments | Advanced | Advanced | debug_overlay
+wardrobe_overlay | Main | Wardrobe | about
+wardrobe_overlay | Main | Wardrobe | show_set_names
+wardrobe_overlay | Main | Wardrobe | follow_mouse
+wardrobe_overlay | Main | Background | background
+wardrobe_overlay | Main | Background | background_strength
+celebrations | Main | Celebrations | about
+break_reset_fix | Main | Break Reset Fix | about
+break_reset_fix | Advanced | Advanced | debug_log
+explosions_hider | Main | Explosions | about
+grappling_hook | Main | Appearance | look_row
+last_dragons | Main | Appearance | look_row
+
+# Item protection
+item_protection | Main | Blocked | block_drop
+item_protection | Main | Blocked | block_sell
+item_protection | Main | Blocked | block_salvage
+item_protection | Main | Blocked | block_trade
+item_protection | Main | Blocked | block_auction
+item_protection | Main | Blocked | block_dungeon_chest
+item_protection | Main | Blocked | block_frame
+item_protection | Main | Extras | valuable_consumables
+item_protection | Main | Extras | drop_in_dungeons
+item_protection | Main | Extras | notice

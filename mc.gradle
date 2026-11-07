@@ -1,0 +1,233 @@
+// One codebase, one jar per Minecraft version, with nothing but Gradle.
+//
+//   ./gradlew build              the base version (26.2): the sources as they are, as the IDE sees them
+//   ./gradlew build -Pmc=26.3    another version: its own build folder (build/mc-26.3), its versions from mc/26.3.properties, and sources prepared
+//                                from the same files by mc/26.3.rules and the marks in the code:
+//
+//     //#if 26.3
+//     //$ code only for 26.3, a comment for the base version
+//     //#else
+//     code for the base version, left out for 26.3
+//     //#endif
+//
+// A class that is altogether different on a version (a mixin of a class that the game replaced) lies under mc/26.3/java at the same path, and takes
+// the place of the one in the sources. The rules are for what only changed its name, line by line: "a => b", "~ regex => replacement", "res: a => b"
+// for the resources (the mixin list, fabric.mod.json) and "drop path" for a class the version does not have.
+def baseVersion = '26.2'
+def mcVersion = providers.gradleProperty('mc').getOrElse(baseVersion)
+def otherVersion = mcVersion != baseVersion
+def versionsDir = rootProject.file('mc')
+
+ext.mcVersion = mcVersion
+ext.mcOther = otherVersion
+// what the published jars are called apart from the base version's: lumio-mc26.3, lumio-api-mc26.3
+ext.mcArtifactSuffix = otherVersion ? "-mc${mcVersion}" : ''
+
+if (otherVersion) {
+	def versionFile = new File(versionsDir, "${mcVersion}.properties")
+	if (!versionFile.exists()) {
+		throw new GradleException("Minecraft ${mcVersion} is not set up: ${versionFile} is missing")
+	}
+	def versions = new Properties()
+	versionFile.withReader('UTF-8') { versions.load(it) }
+	versions.each { key, value -> project.ext.set(key as String, value as String) }
+	layout.buildDirectory = file("build/mc-${mcVersion}")
+}
+
+/** Prepares a source folder for another Minecraft version: the marks and the rules on every Java file, and the classes of that version. */
+abstract class McSources extends DefaultTask {
+	@InputDirectory
+	@PathSensitive(PathSensitivity.RELATIVE)
+	abstract DirectoryProperty getSources()
+
+	@InputFile
+	@PathSensitive(PathSensitivity.NONE)
+	abstract RegularFileProperty getRules()
+
+	@Input
+	abstract Property<String> getVersion()
+
+	@InputFiles
+	@PathSensitive(PathSensitivity.RELATIVE)
+	abstract ConfigurableFileCollection getReplacements()
+
+	@OutputDirectory
+	abstract DirectoryProperty getOutput()
+
+	@TaskAction
+	void prepare() {
+		def out = output.get().asFile
+		out.deleteDir()
+		out.mkdirs()
+		def literal = []
+		def patterns = []
+		def dropped = [] as Set
+		rules.get().asFile.eachLine('UTF-8') { line ->
+			def rule = line.trim()
+			if (rule.isEmpty() || rule.startsWith('#') || rule.startsWith('res:')) {
+				return
+			}
+			if (rule.startsWith('drop ')) {
+				dropped << rule.substring(5).trim()
+				return
+			}
+			def parts = rule.split(/ =>( |$)/, 2)
+			def to = parts.length > 1 ? parts[1] : ''
+			if (parts[0].startsWith('~ ')) {
+				patterns << [java.util.regex.Pattern.compile(parts[0].substring(2)), to]
+			} else {
+				literal << [parts[0], to]
+			}
+		}
+		def from = sources.get().asFile
+		def replaced = [] as Set
+		replacements.files.each { root ->
+			if (root.isDirectory()) {
+				root.eachFileRecurse(groovy.io.FileType.FILES) { replaced << root.toPath().relativize(it.toPath()).toString().replace('\\', '/') }
+			}
+		}
+		def wanted = version.get()
+		from.eachFileRecurse(groovy.io.FileType.FILES) { file ->
+			def path = from.toPath().relativize(file.toPath()).toString().replace('\\', '/')
+			if (path in replaced || path in dropped) {
+				return
+			}
+			def target = new File(out, path)
+			target.parentFile.mkdirs()
+			if (!path.endsWith('.java')) {
+				target.bytes = file.bytes
+				return
+			}
+			def text = marked(file.getText('UTF-8'), wanted, path)
+			literal.each { text = text.replace(it[0], it[1]) }
+			patterns.each { text = it[0].matcher(text).replaceAll(it[1]) }
+			target.setText(text, 'UTF-8')
+		}
+	}
+
+	/** Takes what the marks say for this version; a line count that stays the same keeps the line numbers of errors right. */
+	String marked(String text, String wanted, String path) {
+		if (!text.contains('//#if ')) {
+			return text
+		}
+		def result = new StringBuilder()
+		// null outside of a mark; else whether the lines now are for this version
+		Boolean taking = null
+		text.split('\n', -1).eachWithIndex { line, index ->
+			def trimmed = line.trim()
+			if (trimmed.startsWith('//#if ')) {
+				if (taking != null) {
+					throw new GradleException("${path}:${index + 1}: a mark inside a mark")
+				}
+				taking = trimmed.substring(6).trim() == wanted
+				result.append('\n')
+			} else if (trimmed.startsWith('//#else')) {
+				taking = !taking
+				result.append('\n')
+			} else if (trimmed.startsWith('//#endif')) {
+				taking = null
+				result.append('\n')
+			} else if (taking == null) {
+				result.append(line).append('\n')
+			} else if (taking && trimmed.startsWith('//$ ')) {
+				result.append(line.replaceFirst(/\/\/\$ /, '')).append('\n')
+			} else if (taking && !trimmed.startsWith('//$')) {
+				result.append(line).append('\n')
+			} else {
+				result.append('\n')
+			}
+		}
+		if (taking != null) {
+			throw new GradleException("${path}: a mark without its end")
+		}
+		// the split gave one line more than the text has
+		result.setLength(result.length() - 1)
+		return result.toString()
+	}
+}
+
+/**
+ * Called at the end of a build script, when all its source sets are there: for another version, they are compiled from prepared sources, and the
+ * mixin list and fabric.mod.json follow the rules.
+ */
+ext.mcPrepareSources = {
+	if (!otherVersion) {
+		return
+	}
+	def rulesFile = new File(versionsDir, "${mcVersion}.rules")
+	def replacements = file("mc/${mcVersion}")
+	sourceSets.configureEach { set ->
+		def from = file("src/${set.name}/java")
+		if (!from.isDirectory()) {
+			return
+		}
+		def name = "mcSources${set.name.capitalize()}"
+		def replacementsDir = new File(replacements, "${set.name == 'main' ? '' : set.name + '/'}java")
+		def prepared = tasks.register(name, McSources) {
+			sources = from
+			rules = rulesFile
+			version = mcVersion
+			if (replacementsDir.isDirectory()) {
+				it.replacements.from(replacementsDir)
+			}
+			output = layout.buildDirectory.dir("mc-sources/${set.name}")
+		}
+		set.java.srcDirs = replacementsDir.isDirectory() ? [prepared, replacementsDir] : [prepared]
+	}
+
+	def resourceRules = []
+	rulesFile.eachLine('UTF-8') { line ->
+		def rule = line.trim()
+		if (rule.startsWith('res: ')) {
+			def parts = rule.substring(5).split(' => ', 2)
+			resourceRules << [parts[0], parts.length > 1 ? parts[1] : '']
+		}
+	}
+	def shaderPlaces = project.findProperty('mc_shader_places') == 'true'
+	tasks.withType(ProcessResources).configureEach {
+		inputs.property 'mcResourceRules', resourceRules.toString()
+		inputs.property 'mcShaderPlaces', shaderPlaces
+		if (shaderPlaces) {
+			// What goes from the vertex shader to the fragment shader keeps one place by its name in all of the shaders; the inputs of the mesh are found by
+			// their names, any place goes.
+			def varyings = ['vertexColor', 'texCoord0', 'local', 'arc', 'shape', 'flags', 'texCoord', 'direction']
+			filesMatching(['**/shaders/core/*.vsh', '**/shaders/core/*.fsh', '**/shaders/include/*.glsl']) { details ->
+				def vertex = details.name.endsWith('.vsh')
+				def attributes = 0
+				details.filter { String line ->
+					if (line.startsWith('#version')) {
+						return line + '\n#extension GL_ARB_separate_shader_objects : require'
+					}
+					if (line.startsWith('#moj_import')) {
+						return line.replace('#moj_import', '#include')
+					}
+					def declared = line =~ /^\s*(flat\s+)?(in|out)\s+\w+\s+(\w+)\s*;.*$/
+					if (!declared.matches()) {
+						return line
+					}
+					def direction = declared.group(2)
+					def name = declared.group(3)
+					int place
+					if (vertex && direction == 'in') {
+						place = attributes++
+					} else if (!vertex && direction == 'out') {
+						place = 0
+					} else {
+						place = varyings.indexOf(name)
+						if (place < 0) {
+							throw new GradleException("${details.name}: give the shader's value ${name} a place in mc.gradle")
+						}
+					}
+					return "layout(location = ${place}) ${line.trim()}"
+				}
+			}
+		}
+		filesMatching(['*.mixins.json', 'fabric.mod.json']) {
+			filter { String line ->
+				def text = line
+				resourceRules.each { text = text.replace(it[0], it[1]) }
+				text
+			}
+		}
+	}
+}
