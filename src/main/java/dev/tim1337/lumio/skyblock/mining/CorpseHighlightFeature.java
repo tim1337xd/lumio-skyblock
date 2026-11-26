@@ -1,11 +1,13 @@
 package dev.tim1337.lumio.skyblock.mining;
 
+import dev.tim1337.lumio.api.LumioChat;
 import dev.tim1337.lumio.api.experimental.draw.Draw;
 import dev.tim1337.lumio.api.feature.AddonFeature;
 import dev.tim1337.lumio.api.setting.Toggle;
 
 import static dev.tim1337.lumio.skyblock.SkyBlockAddon.make;
 import dev.tim1337.lumio.api.experimental.util.Sight;
+import dev.tim1337.lumio.api.experimental.util.TextColors;
 import dev.tim1337.lumio.skyblock.data.ChatGuard;
 import dev.tim1337.lumio.skyblock.data.ItemGains;
 import dev.tim1337.lumio.skyblock.data.SkyBlock;
@@ -86,7 +88,7 @@ public class CorpseHighlightFeature extends AddonFeature {
 	private final Toggle announce = add(make().toggle("announce", Component.literal("Announce found corpses"), true), "Sharing",
 		"With a button to share it with your party");
 	private final Toggle waypoints = add(make().toggle("waypoints", Component.literal("Party waypoints"), true), "Sharing",
-		"Corpses shared in party chat, also from SkyHanni");
+		"Corpses shared in party chat");
 
 	/** Known corpses by entity id with their kind; and the opened ones. */
 	private final Map<Integer, Kind> corpses = new HashMap<>();
@@ -99,7 +101,7 @@ public class CorpseHighlightFeature extends AddonFeature {
 	private int tick;
 
 	public CorpseHighlightFeature() {
-		super("corpse_highlight", "Corpse highlight", "The corpses of the Glacite Mineshafts you have seen, lit through the walls in the color of their kind, with a breathing neon light.", false);
+		super("corpse_highlight", "Corpse highlight", "Corpses you have seen, lit through walls.", false);
 		iconRgb(0x3AF2FF);
 		iconName("skull");
 		summary("Lights up the mineshaft corpses you have seen");
@@ -228,8 +230,6 @@ public class CorpseHighlightFeature extends AddonFeature {
 		"x:\\s*(-?\\d{1,8}),\\s*y:\\s*(-?\\d{1,8}),\\s*z:\\s*(-?\\d{1,8})\\s*\\|\\s*\\((Lapis|Umber|Tungsten|Vanguard) Corpse\\)", Pattern.CASE_INSENSITIVE);
 	/** The sender of a party message: "Party > [MVP+] Name: ...". */
 	private static final Pattern SENDER = Pattern.compile("(?:\\[[^\\]]+]\\s*)?([A-Za-z0-9_]{2,16}):");
-	/** Legacy formatting codes, removed before matching: every chat message passes through here. */
-	private static final Pattern COLOR_CODES = Pattern.compile("§.");
 
 	/** @return the chat line that shares a corpse, in SkyHanni's format */
 	private static String shareLine(Kind kind, BlockPos pos) {
@@ -263,7 +263,7 @@ public class CorpseHighlightFeature extends AddonFeature {
 			.append(Component.literal("[ Copy ]").withStyle(style -> style.withColor(ChatFormatting.AQUA)
 				.withClickEvent(new ClickEvent.CopyToClipboard(line))
 				.withHoverEvent(new HoverEvent.ShowText(Component.literal("Copy where it is")))));
-		client.player.sendSystemMessage(message);
+		LumioChat.line(message);
 	}
 
 	/** Handles a chat message: a corpse shared by someone (in SkyHanni's format) becomes a waypoint until it is reached. */
@@ -271,7 +271,7 @@ public class CorpseHighlightFeature extends AddonFeature {
 		if (!isEnabled() || !waypoints.get()) {
 			return;
 		}
-		String text = COLOR_CODES.matcher(message.getString()).replaceAll("");
+		String text = TextColors.noColors(message.getString());
 		// only the party's shares: anyone can write the format in public chat
 		if (!ChatGuard.fromParty(text)) {
 			return;

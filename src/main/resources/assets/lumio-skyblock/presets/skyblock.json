@@ -1,5 +1,28 @@
 {
   "_version" : 14,
+  "dungeon_chests" : {
+    "enabled" : true
+  },
+  "dungeon_highlights" : {
+    "enabled" : true,
+    "bats" : true,
+    "minibosses" : true,
+    "teammates" : true,
+    "teammate_names" : true,
+    "hide_unstarred_tags" : true
+  },
+  "dungeon_leap" : {
+    "enabled" : true
+  },
+  "dungeon_map" : {
+    "enabled" : true
+  },
+  "dungeon_score" : {
+    "enabled" : true
+  },
+  "dungeon_splits" : {
+    "enabled" : true
+  },
   "arrows" : {
     "accent" : {
       "color" : "#0A84FF",
@@ -38,8 +61,15 @@
     "size" : 1
   },
   "break_reset_fix" : {
-    "debug_log" : false,
     "enabled" : false
+  },
+  "camera" : {
+    "enabled" : true,
+    "fire" : "LOWER",
+    "full_bright" : false,
+    "portal" : "NORMAL",
+    "skip_front_view" : true,
+    "underwater" : "NORMAL"
   },
   "celebrations" : {
     "enabled" : true
@@ -355,7 +385,6 @@
   "experiments" : {
     "alerts" : true,
     "block_wrong_clicks" : false,
-    "debug_overlay" : false,
     "enabled" : true,
     "guardian" : false,
     "highlight_pairs" : true,
@@ -496,7 +525,7 @@
   },
   "item_list" : {
     "enabled" : true,
-    "favorites_first" : true,
+    "pinned_first" : true,
     "item_size" : 1,
     "keep_search" : true,
     "only_while_searching" : true,
@@ -522,7 +551,6 @@
     "valuable_consumables" : true
   },
   "item_tooltip_lines" : {
-    "dungeon_data" : false,
     "lines" : {
       "known" : [
         "dungeon",
@@ -628,7 +656,6 @@
     "boss_alert" : false,
     "boss_highlight" : false,
     "color" : "#FF7A00",
-    "drop_debug" : false,
     "drops" : true,
     "enabled" : false,
     "highlight" : true,
@@ -763,8 +790,6 @@
     "show_header_title" : true,
     "show_last" : false,
     "show_plots" : true,
-    "show_spray" : true,
-    "show_visitors" : true,
     "spawn_alert" : true,
     "x" : 200,
     "y" : 120

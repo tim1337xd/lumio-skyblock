@@ -1,5 +1,7 @@
 package dev.tim1337.lumio.skyblock.slayer;
 
+import dev.tim1337.lumio.api.experimental.util.TextColors;
+
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -19,7 +21,6 @@ record SlayerProgress(State state, long done, long needed) {
 	}
 
 	private static final Pattern COUNT = Pattern.compile("^\\(?\\s*([\\d.,]{1,12})(k?)\\s*/\\s*([\\d.,]{1,12})(k?)\\s*\\)?\\s*(kills?|combat xp|xp)$");
-	private static final Pattern COLOR_CODE = Pattern.compile("§.");
 	/** Every kind of space a line can have, also those the game's fonts do not show. */
 	private static final Pattern ODD_SPACE = Pattern.compile("[\\s\\p{Z}]+");
 	private static final int THOUSAND = 1000;
@@ -31,7 +32,7 @@ record SlayerProgress(State state, long done, long needed) {
 		if (line == null) {
 			return NONE;
 		}
-		String plain = ODD_SPACE.matcher(COLOR_CODE.matcher(line).replaceAll("")).replaceAll(" ").strip().toLowerCase(Locale.ROOT);
+		String plain = ODD_SPACE.matcher(TextColors.noColors(line)).replaceAll(" ").strip().toLowerCase(Locale.ROOT);
 		if (plain.isEmpty()) {
 			return NONE;
 		}

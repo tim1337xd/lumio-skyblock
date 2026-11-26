@@ -1,8 +1,9 @@
 package dev.tim1337.lumio.skyblock.data;
 
-import dev.tim1337.lumio.api.experimental.util.Debug;
+import dev.tim1337.lumio.api.experimental.debug.DebugHooks;
 import dev.tim1337.lumio.api.experimental.util.HttpLimits;
 import dev.tim1337.lumio.api.experimental.util.TextColors;
+import dev.tim1337.lumio.skyblock.SkyBlockDebug;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -17,6 +18,7 @@ import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,8 +28,9 @@ import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 
 /**
- * Hypixel SkyBlock item values in coins: bazaar prices from the public Hypixel API (no key needed), and auction house lowest BIN prices as listed by
- * NotEnoughUpdates. They are refreshed periodically on a background thread, and profit is computed from them. An item found in neither is valued
+ * Hypixel SkyBlock item values in coins: bazaar prices from the public Hypixel API (no key needed), refreshed at most once a minute while
+ * something shows prices, and auction house lowest BIN prices from SkyCofl: every item's from its list, replaced by the item's own numbers once it
+ * is looked at ({@link AuctionPrices}). They are fetched on a background thread, and profit is computed from them. An item found in neither is valued
  * at zero but still counted.
  * <p>
  * Item names are derived from ids ({@code ENCHANTED_CARROT} is "Enchanted Carrot"), which is how a sack message, containing only the name, is
@@ -35,11 +38,8 @@ import java.util.zip.GZIPInputStream;
  */
 public final class SkyBlockPrices {
 	private static final String BAZAAR = "https://api.hypixel.net/v2/skyblock/bazaar";
-	private static final String LOWEST_BIN = "https://moulberry.codes/lowestbin.json";
-	/** The same list from Coflnet, used when the NotEnoughUpdates one does not respond. */
+	/** The lowest BIN of every item at once, from SkyCofl. */
 	private static final String LOWEST_BIN_COFLNET = "https://sky.coflnet.com/api/prices/neu";
-	/** Recent auction house sale prices of a single item with their median, from Coflnet. */
-	private static final String ITEM_PRICE = "https://sky.coflnet.com/api/item/price/";
 	/** Every SkyBlock item with its name and NPC sell price: the price of items neither on the bazaar nor the auction house. */
 	private static final String ITEMS = "https://api.hypixel.net/v2/resources/skyblock/items";
 	private static final Map<String, Double> NPC_SELL = new ConcurrentHashMap<>();
@@ -100,7 +100,7 @@ public final class SkyBlockPrices {
 
 	private static volatile long fetchedAt;
 	private static volatile long bazaarFetchedAt;
-	private static final long BAZAAR_REFRESH_MS = 2 * 60_000L;
+	private static final long BAZAAR_REFRESH_MS = 60_000L;
 	private static volatile boolean fetching;
 	private static volatile String lastError = "";
 
@@ -125,7 +125,9 @@ public final class SkyBlockPrices {
 					bazaarFetchedAt = System.currentTimeMillis();
 				} catch (Exception e) {
 					bazaarFetchedAt = System.currentTimeMillis() - BAZAAR_REFRESH_MS + 30_000L;
-					Debug.log("Could not fetch the bazaar: {}", e.toString());
+					if (DebugHooks.ACTIVE) {
+						DebugHooks.log(SkyBlockDebug.PRICES, "Could not fetch the bazaar: {}", e.toString());
+					}
 				} finally {
 					fetching = false;
 				}
@@ -138,7 +140,9 @@ public final class SkyBlockPrices {
 						fetchItems();
 						itemsFetched = true;
 					} catch (Exception e) {
-						Debug.log("Could not fetch the items of SkyBlock: {}", e.toString());
+						if (DebugHooks.ACTIVE) {
+							DebugHooks.log(SkyBlockDebug.PRICES, "Could not fetch the items of SkyBlock: {}", e.toString());
+						}
 					}
 				}
 				fetchBazaar();
@@ -149,7 +153,9 @@ public final class SkyBlockPrices {
 			} catch (Exception e) {
 				lastError = e.getMessage() == null ? e.toString() : e.getMessage();
 				fetchedAt = System.currentTimeMillis() - REFRESH_MS + 60_000L; // retry in a minute
-				Debug.log("Could not fetch the prices of SkyBlock: {}", lastError);
+				if (DebugHooks.ACTIVE) {
+					DebugHooks.log(SkyBlockDebug.PRICES, "Could not fetch the prices of SkyBlock: {}", lastError);
+				}
 			} finally {
 				fetching = false;
 			}
@@ -166,6 +172,33 @@ public final class SkyBlockPrices {
 	/** @return whether both lists, the lowest BINs and the bazaar, have come */
 	public static boolean listsLoaded() {
 		return !BAZAAR_SELL.isEmpty() && !LOWEST.isEmpty();
+	}
+
+	/** @return whether an id is a Bazaar product with a price: such an item is priced there, before the Auction House */
+	public static boolean onBazaar(String id) {
+		return id != null && (bazaarBuy(id) > 0d || bazaarSell(id) > 0d);
+	}
+
+	/**
+	 * @param ids the Bazaar products to add up (the enchantments of a book)
+	 * @param buy the instant buy prices, else the instant sell prices
+	 * @return their sum, or NaN when one of them has no price there
+	 */
+	public static double bazaarSum(List<String> ids, boolean buy) {
+		double sum = 0d;
+		for (String id : ids) {
+			double price = buy ? bazaarBuy(id) : bazaarSell(id);
+			if (!(price > 0d)) {
+				return Double.NaN;
+			}
+			sum += price;
+		}
+		return ids.isEmpty() ? Double.NaN : sum;
+	}
+
+	/** @return the id an item of the item list is priced by: its Bazaar product where it is one (a book, a shard), else its id in the lowest BIN list */
+	public static String priceIdOfListed(String repoId) {
+		return PriceKeys.forListed(repoId, SkyBlockPrices::onBazaar, ItemRepo::shardProduct);
 	}
 
 	/** @return whether an id is in the lowest BIN list or on the bazaar: anything else has no market to ask */
@@ -199,6 +232,10 @@ public final class SkyBlockPrices {
 				}
 			}
 			int code = connection.getResponseCode();
+			if (code == TOO_MANY && url.startsWith(COFLNET)) {
+				// SkyCofl asks for a pause: nothing goes to it until it is over (Retry-After in seconds; a minute where it says nothing readable)
+				coflnetPausedUntil = System.currentTimeMillis() + retryAfterMillis(connection.getHeaderField("Retry-After"));
+			}
 			if (code != 200) {
 				throw new IllegalStateException(url + " answered " + code);
 			}
@@ -215,7 +252,11 @@ public final class SkyBlockPrices {
 	}
 
 	private static void fetchBazaar() throws Exception {
-		JsonObject root = fetch(BAZAAR).getAsJsonObject();
+		readBazaar(fetch(BAZAAR).getAsJsonObject());
+	}
+
+	/** Takes the Bazaar's products from its answer: the instant buy and sell prices of each, and its volume of the week. */
+	static void readBazaar(JsonObject root) {
 		if (!root.has("products")) {
 			throw new IllegalStateException("the bazaar has no products");
 		}
@@ -288,16 +329,9 @@ public final class SkyBlockPrices {
 	}
 
 	private static void fetchLowestBin() throws Exception {
-		JsonObject root;
-		try {
-			root = fetch(LOWEST_BIN).getAsJsonObject();
-			lowestSource = "Moulberry";
-		} catch (Exception e) {
-			// the NotEnoughUpdates list is not always available; Coflnet's has the same format
-			Debug.log("The lowest prices of NotEnoughUpdates could not be fetched, Coflnet is asked: {}", e.toString());
-			root = fetch(LOWEST_BIN_COFLNET).getAsJsonObject();
-			lowestSource = "Coflnet";
-		}
+		// the lowest BIN of every item at once, from SkyCofl (the list the item's own numbers replace once it is looked at, see AuctionPrices)
+		JsonObject root = fetchCoflnet(LOWEST_BIN_COFLNET).getAsJsonObject();
+		lowestSource = "SkyCofl";
 		Map<String, Double> prices = new HashMap<>();
 		for (Map.Entry<String, JsonElement> entry : root.entrySet()) {
 			try {
@@ -366,7 +400,8 @@ public final class SkyBlockPrices {
 	private static JsonElement exactRequest(String url, String body) {
 		try {
 			synchronized (SkyBlockPrices.class) {
-				long wait = lastCoflnetAsk + EXACT_ASK_INTERVAL_MILLIS - System.currentTimeMillis();
+				pausedCheck();
+				long wait = lastCoflnetAsk + ASK_INTERVAL_MILLIS - System.currentTimeMillis();
 				if (wait > 0L) {
 					Thread.sleep(wait);
 				}
@@ -382,6 +417,7 @@ public final class SkyBlockPrices {
 	static JsonElement fetchCoflnet(String url) {
 		try {
 			synchronized (SkyBlockPrices.class) {
+				pausedCheck();
 				long wait = lastCoflnetAsk + ASK_INTERVAL_MILLIS - System.currentTimeMillis();
 				if (wait > 0L) {
 					Thread.sleep(wait);
@@ -437,11 +473,33 @@ public final class SkyBlockPrices {
 		return lowest == null ? 0 : lowest;
 	}
 
-	/** Single-item lowest BIN prices from Coflnet by id, with fetch time; NaN while pending or if there is none. */
-	private static final Map<String, double[]> EXACT_LOWEST = new ConcurrentHashMap<>();
-	/** Minimum time between two single-item requests to Coflnet, of either kind: its public API is shared by many users. */
+	/** All requests to SkyCofl keep this far apart (one at a time, at most 60 a minute, under its limit of 100 per minute per address). */
 	private static final long ASK_INTERVAL_MILLIS = 1000L;
-	private static final long EXACT_ASK_INTERVAL_MILLIS = 300L;
+	/** SkyCofl's pause after a 429: the time until nothing is sent to it. */
+	private static volatile long coflnetPausedUntil;
+	private static final int TOO_MANY = 429;
+	private static final long DEFAULT_PAUSE_MILLIS = 60_000L;
+	private static final long MOST_PAUSE_MILLIS = 15 * 60_000L;
+	private static final String COFLNET = "https://sky.coflnet.com/";
+
+	/** Throws while SkyCofl asked for a pause, so nothing is sent before it is over. */
+	private static void pausedCheck() {
+		if (System.currentTimeMillis() < coflnetPausedUntil) {
+			throw new IllegalStateException("SkyCofl asked for a pause");
+		}
+	}
+
+	/** @return how long a Retry-After header asks to wait, in milliseconds: its seconds, else a minute, at most a quarter of an hour */
+	static long retryAfterMillis(String header) {
+		if (header == null) {
+			return DEFAULT_PAUSE_MILLIS;
+		}
+		try {
+			return Math.clamp(Long.parseLong(header.strip()) * 1000L, 1000L, MOST_PAUSE_MILLIS);
+		} catch (NumberFormatException e) {
+			return DEFAULT_PAUSE_MILLIS;
+		}
+	}
 	private static volatile long lastCoflnetAsk;
 
 	/**
@@ -449,29 +507,8 @@ public final class SkyBlockPrices {
 	 *         time, at most once per second) and cached for ten minutes; never for bazaar items.
 	 */
 	private static double exactLowest(String id) {
-		if (id == null || id.isEmpty() || id.indexOf(';') >= 0 || BAZAAR_SELL.containsKey(id)) {
-			return Double.NaN;
-		}
-		long now = System.currentTimeMillis();
-		double[] known = EXACT_LOWEST.get(id);
-		if (known != null && now - (long) known[1] < 10 * 60_000L) {
-			return known[0];
-		}
-		if (now - lastCoflnetAsk < ASK_INTERVAL_MILLIS) {
-			return known == null ? Double.NaN : known[0];
-		}
-		lastCoflnetAsk = now;
-		EXACT_LOWEST.put(id, new double[]{known == null ? Double.NaN : known[0], now});
-		MEDIAN_THREAD.execute(() -> {
-			try {
-				JsonObject root = fetch(ITEM_PRICE + URLEncoder.encode(id, StandardCharsets.UTF_8) + "/bin").getAsJsonObject();
-				double lowest = root.has("lowest") && !root.get("lowest").isJsonNull() ? root.get("lowest").getAsDouble() : Double.NaN;
-				EXACT_LOWEST.put(id, new double[]{lowest > 0 ? lowest : Double.NaN, System.currentTimeMillis()});
-			} catch (Exception e) {
-				Debug.log("Could not fetch the lowest price of {}: {}", id, e.toString());
-			}
-		});
-		return known == null ? Double.NaN : known[0];
+		// the item's own lowest BIN from SkyCofl, asked for while it is shown (the one source of every view, see AuctionPrices)
+		return AuctionPrices.look(id).lowest();
 	}
 
 	/** @return the instant sell price on the bazaar (best buy order), or 0 if it is not a bazaar item */
@@ -486,42 +523,9 @@ public final class SkyBlockPrices {
 		return buy == null ? 0 : buy;
 	}
 
-	/** Requested auction house medians by id, with fetch time; NaN while pending or if there is none. */
-	private static final Map<String, double[]> MEDIANS = new ConcurrentHashMap<>();
-	private static final ExecutorService MEDIAN_THREAD = Executors.newSingleThreadExecutor(runnable -> {
-		Thread thread = new Thread(runnable, "Lumio auction median");
-		thread.setDaemon(true);
-		return thread;
-	});
-
-	/**
-	 * @return the median auction house sale price over recent days from Coflnet, or NaN while unknown. Only requested for viewed items (one at a time,
-	 *         at most once per second) and cached for ten minutes.
-	 */
+	/** @return the median auction house sale price over {@value AuctionPrices#DAYS} days from SkyCofl, or NaN while unknown (see {@link AuctionPrices}) */
 	public static double median(String id) {
-		if (id == null || id.isEmpty() || BAZAAR_SELL.containsKey(id)) {
-			return Double.NaN;
-		}
-		long now = System.currentTimeMillis();
-		double[] known = MEDIANS.get(id);
-		if (known != null && now - (long) known[1] < 10 * 60_000L) {
-			return known[0];
-		}
-		if (now - lastCoflnetAsk < ASK_INTERVAL_MILLIS) {
-			return known == null ? Double.NaN : known[0];
-		}
-		lastCoflnetAsk = now;
-		MEDIANS.put(id, new double[]{known == null ? Double.NaN : known[0], now});
-		MEDIAN_THREAD.execute(() -> {
-			try {
-				JsonObject root = fetch(ITEM_PRICE + URLEncoder.encode(id, StandardCharsets.UTF_8)).getAsJsonObject();
-				double median = root.has("median") ? root.get("median").getAsDouble() : Double.NaN;
-				MEDIANS.put(id, new double[]{median > 0 ? median : Double.NaN, System.currentTimeMillis()});
-			} catch (Exception e) {
-				Debug.log("Could not fetch the median of {}: {}", id, e.toString());
-			}
-		});
-		return known == null ? Double.NaN : known[0];
+		return AuctionPrices.look(id).median();
 	}
 
 	/** @return the value of one item in coins by the given price mode, or 0 if unknown */

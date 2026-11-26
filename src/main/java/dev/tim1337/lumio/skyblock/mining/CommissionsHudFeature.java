@@ -5,7 +5,6 @@ import dev.tim1337.lumio.api.experimental.draw.Draw;
 import dev.tim1337.lumio.api.experimental.draw.HudTheme;
 import dev.tim1337.lumio.api.experimental.hud.HudEditor;
 import dev.tim1337.lumio.api.feature.AddonPanel;
-import dev.tim1337.lumio.api.feature.SettingGroup;
 import dev.tim1337.lumio.api.setting.Toggle;
 
 import static dev.tim1337.lumio.skyblock.SkyBlockAddon.make;
@@ -67,11 +66,12 @@ public class CommissionsHudFeature extends AddonPanel {
 	private boolean filled;
 
 	public CommissionsHudFeature() {
-		super("commissions_hud", "Commissions", "The commissions of the Dwarven Mines, with how far each is, lit when it is done.", true, Anchor.LEFT, false, 200f, 220f);
+		super("commissions_hud", "Commissions", "Dwarven Mines commissions and their progress.", true, Anchor.LEFT, false, 200f, 220f);
+		pageGroup("Panels");
 		offerCardSize();
 		iconRgb(SystemColors.YELLOW_RGB);
 		iconName("clipboard");
-		summary("Your Dwarven Mines commissions and their progress");
+		summary("Your commissions and their progress");
 		offerNoBackground();
 		offerHeader();
 	}

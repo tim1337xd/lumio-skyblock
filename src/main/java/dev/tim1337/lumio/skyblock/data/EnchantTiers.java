@@ -159,23 +159,6 @@ public final class EnchantTiers {
 				return -1;
 			}
 		}
-		int total = 0;
-		int last = 0;
-		for (int i = text.length() - 1; i >= 0; i--) {
-			int value = switch (text.charAt(i)) {
-				case 'I' -> 1;
-				case 'V' -> 5;
-				case 'X' -> 10;
-				case 'L' -> 50;
-				case 'C' -> 100;
-				default -> -1;
-			};
-			if (value < 0) {
-				return -1;
-			}
-			total += value < last ? -value : value;
-			last = Math.max(last, value);
-		}
-		return total;
+		return Roman.strict(text, -1);
 	}
 }

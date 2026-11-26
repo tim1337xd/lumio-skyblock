@@ -1,0 +1,15 @@
+# Hotspot Radar use 3 from the game: the eyes and look at the right-click, then the flames in order; shifted by whole blocks so the hotspot's middle is near the origin (-0.40 0.5 -0.56)
+use 15.7391 5.6200 -46.5280 -0.3032 -0.0883 0.9488
+flame 15.4358 5.5316 -45.5792
+flame 15.2324 5.8099 -44.9641
+flame 14.9143 6.0237 -44.0313
+flame 14.4919 6.1764 -42.8093
+flame 13.9755 6.2712 -41.3267
+flame 13.3752 6.3115 -39.6118
+flame 12.7013 6.3004 -37.6936
+flame 11.9640 6.2412 -35.6005
+flame 11.1735 6.1372 -33.3608
+flame 10.3401 5.9916 -31.0031
+flame 9.4740 5.8078 -28.5563
+flame 8.5854 5.5889 -26.0486
+flame 7.6845 5.3382 -23.5087

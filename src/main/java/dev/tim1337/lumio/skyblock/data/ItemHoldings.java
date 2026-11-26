@@ -3,10 +3,8 @@ package dev.tim1337.lumio.skyblock.data;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.item.ItemStack;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -14,10 +12,6 @@ import java.util.Map;
  * {@link StorageTracker}). Counted at most once a second while someone asks, never per frame per item.
  */
 public final class ItemHoldings {
-	/** A place an item is in, and how many are there. */
-	public record Place(String name, int count) {
-	}
-
 	private static final long FRESH_MILLIS = 1000L;
 	private static final String INVENTORY = "Inventory";
 	/** Per item id: the places it is in and how many, in the order inventory, ender chest pages, backpacks. */
@@ -39,18 +33,6 @@ public final class ItemHoldings {
 			total += count;
 		}
 		return total;
-	}
-
-	/** @return where the player has an item, and how many in each place */
-	public static List<Place> places(String id) {
-		refresh();
-		Map<String, Integer> places = BY_ID.get(id);
-		if (places == null) {
-			return List.of();
-		}
-		List<Place> out = new ArrayList<>(places.size());
-		places.forEach((name, count) -> out.add(new Place(name, count)));
-		return out;
 	}
 
 	/** @return the readable name of a storage page from its key: "Ender chest 2", "Backpack 3" */

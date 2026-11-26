@@ -2,6 +2,7 @@ package dev.tim1337.lumio.skyblock.hud;
 
 import dev.tim1337.lumio.api.MainSettings;
 import dev.tim1337.lumio.api.draw.Canvas;
+import dev.tim1337.lumio.api.experimental.debug.DebugHooks;
 import dev.tim1337.lumio.api.experimental.draw.Draw;
 import dev.tim1337.lumio.api.experimental.draw.HudTheme;
 import dev.tim1337.lumio.api.experimental.draw.PanelKit;
@@ -9,9 +10,9 @@ import dev.tim1337.lumio.api.experimental.draw.Radius;
 import dev.tim1337.lumio.api.experimental.draw.TextScale;
 import dev.tim1337.lumio.api.experimental.ui.SlotLayer;
 import dev.tim1337.lumio.api.experimental.ui.UiSounds;
-import dev.tim1337.lumio.api.experimental.util.Debug;
 import dev.tim1337.lumio.api.experimental.util.ScreenInput;
 import dev.tim1337.lumio.api.experimental.util.TextColors;
+import dev.tim1337.lumio.skyblock.SkyBlockDebug;
 import dev.tim1337.lumio.skyblock.SkyBlockFeatures;
 import dev.tim1337.lumio.skyblock.data.ItemGains;
 import dev.tim1337.lumio.skyblock.data.PetTracker;
@@ -449,7 +450,7 @@ public final class WardrobeOverlay {
 					WardrobeShelf.save();
 				}
 			}
-			if (Debug.on()) {
+			if (DebugHooks.ACTIVE) {
 				logMenu(screen);
 			}
 		}
@@ -508,13 +509,17 @@ public final class WardrobeOverlay {
 			String name = plain(button.getHoverName());
 			WardrobeMenu.State state = WardrobeMenu.state(name, BuiltInRegistries.ITEM.getKey(button.getItem()).getPath());
 			if (state == WardrobeMenu.State.UNKNOWN || state == WardrobeMenu.State.LOCKED && WardrobeMenu.neededRank(loreOf(button)) == null) {
-				Debug.log("Wardrobe: a button that could not be read: {} / {}", name, loreOf(button));
+				if (DebugHooks.ACTIVE) {
+					DebugHooks.log(SkyBlockDebug.PANELS, "Wardrobe: a button that could not be read: {} / {}", name, loreOf(button));
+				}
 			}
 		}
 		for (int i = (WardrobeMenu.BUTTON_ROW + 1) * COLUMNS; i < (WardrobeMenu.BUTTON_ROW + 2) * COLUMNS && i < slots.size(); i++) {
 			ItemStack item = slots.get(i).getItem();
 			if (!item.isEmpty() && !StorageOverlay.isFiller(item)) {
-				Debug.log("Wardrobe: the last row has {} at {}", plain(item.getHoverName()), i);
+				if (DebugHooks.ACTIVE) {
+					DebugHooks.log(SkyBlockDebug.PANELS, "Wardrobe: the last row has {} at {}", plain(item.getHoverName()), i);
+				}
 			}
 		}
 	}
@@ -696,6 +701,8 @@ public final class WardrobeOverlay {
 		int left = (screenWidth - sizes.windowWidth()) / 2;
 		int right = left + sizes.windowWidth();
 		int top = gridTop - WardrobeWindows.BAR - WardrobeWindows.BAR_GAP;
+		// the overlay's column: the HUD behind it keeps clear of it, and shows beside it
+		ScreenRoom.hud(left, top, sizes.windowWidth(), Math.min(screenHeight - top, WardrobeWindows.BAR + WardrobeWindows.BAR_GAP + Math.round(contentHeight)));
 		int favoritesWidth = PanelKit.chipWidth(ui, FAVORITES);
 		int editWidth = PanelKit.chipWidth(ui, EDIT);
 		int buttonsWidth = 2 * BAR_PAD + favoritesWidth + editWidth + SettingsButton.SIZE + 2 * CHIP_GAP;
@@ -958,10 +965,10 @@ public final class WardrobeOverlay {
 		return x >= left && x < left + size && y >= top && y < top + size;
 	}
 
-	/** @return whether a set holds a protected piece; the models show no slots to put the lock on, so the set's card has it */
+	/** @return whether a set holds a favorite piece; the models show no slots to put the marker on, so the set's card has it */
 	private static boolean pieceProtected(WardrobeBook.Slot slot) {
 		for (String piece : slot.pieces()) {
-			if (SkyBlockFeatures.ITEM_PROTECTION.isProtected(stackOf(piece))) {
+			if (SkyBlockFeatures.ITEM_PROTECTION.isFavorite(stackOf(piece))) {
 				return true;
 			}
 		}
@@ -1133,7 +1140,7 @@ public final class WardrobeOverlay {
 	}
 
 	/** The one click the player would make in the game's menu, and then nothing further: the menu answers by itself. */
-	private static void clickOnce(ContainerScreen screen, int slot) {
+	static void clickOnce(ContainerScreen screen, int slot) {
 		UiSounds.click();
 		Minecraft client = Minecraft.getInstance();
 		client.gameMode.handleContainerInput(screen.getMenu().containerId, slot, 0, ContainerInput.PICKUP, client.player);

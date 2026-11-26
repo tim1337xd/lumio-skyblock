@@ -11,14 +11,15 @@ import net.minecraft.network.chat.Component;
 
 /** The game's Wardrobe menu as your character in every set. Nothing is sent to open it: it covers the menu while the player has that open. */
 public class WardrobeOverlayFeature extends AddonFeature {
-	private final dev.tim1337.lumio.api.setting.InfoLine about = add(SkyBlockAddon.make().info("about", Component.literal(""), () -> "Your character in every armor set, over the game's Wardrobe menu."), "General");
+	private final dev.tim1337.lumio.api.setting.InfoLine about = add(SkyBlockAddon.make().info("about", Component.literal(""), () -> "Your character in every armor set."), "General");
 	private final Toggle followMouse = add(SkyBlockAddon.make().toggle("follow_mouse", Component.literal("Players follow the mouse"), false), "General");
-	private final Toggle setNames = add(SkyBlockAddon.make().toggle("show_set_names", Component.literal("Show set names when unnamed"), false), "General");
+	private final Toggle setNames = add(SkyBlockAddon.make().toggle("show_set_names", Component.literal("Set names when unnamed"), false), "General");
 	private final Choice<OverlayBackdrop.Kind> background = add(SkyBlockAddon.make().choice("background", Component.literal("Background"), OverlayBackdrop.Kind.BLUR_AND_DIM, OverlayBackdrop.Kind::label));
 	private final Slider backgroundStrength = add(SkyBlockAddon.make().slider("background_strength", Component.literal("Strength"), OverlayBackdrop.DEFAULT_STRENGTH_PERCENT, 0f, 100f, 0));
 
 	public WardrobeOverlayFeature() {
-		super("wardrobe_overlay", "Wardrobe overlay", "Your character in every armor set, over the game's Wardrobe menu.", true);
+		super("wardrobe_overlay", "Wardrobe overlay", "Your character in every armor set.", true);
+		pageGroup("Inventory and menus");
 		iconRgb(SystemColors.PURPLE_RGB);
 		iconName("person");
 		summary("Your armor sets at a glance");

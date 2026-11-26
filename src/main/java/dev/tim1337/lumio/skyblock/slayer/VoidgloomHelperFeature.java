@@ -49,7 +49,7 @@ public class VoidgloomHelperFeature extends AddonFeature {
 	private static final float FALLING_HALF = 0.5f;
 
 	private final Toggle beaconAlert = add(make().toggle("beacon_alert", Component.literal("Beacon alert"), true), "Beacon",
-		"A short note, and in the Slayer HUD, for your boss and the one you carry");
+		"For your boss and the one you carry");
 	private final Toggle beaconHighlight = add(make().toggle("beacon_highlight", Component.literal("Beacon highlight"), true), "Beacon",
 		"While you can see it, until it is destroyed");
 	private final ColorChoice beaconColor = add(make().color("beacon_color", Component.literal("Color"), SystemColors.RED_RGB), "Beacon");
@@ -61,10 +61,10 @@ public class VoidgloomHelperFeature extends AddonFeature {
 	}
 
 	public VoidgloomHelperFeature() {
-		super("voidgloom_helper", "Voidgloom helper", "Helpers for the Voidgloom Seraph: an alert and a highlight when your boss throws its beacon.", false);
+		super("voidgloom_helper", "Voidgloom helper", "Alert and highlight for the Voidgloom beacon.", false);
 		iconRgb(SystemColors.PURPLE_RGB);
 		iconName("orb");
-		summary("Beacon alert and highlight for your own boss");
+		summary("Beacon alert and highlight for your boss");
 	}
 
 	public void register() {

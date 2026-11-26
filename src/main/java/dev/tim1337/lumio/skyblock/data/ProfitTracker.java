@@ -24,6 +24,8 @@ import java.util.Map;
  * of every item is stored with it, for when prices have not been fetched yet.
  */
 public final class ProfitTracker {
+	/** Said after the name of a drop that counted from the chat line alone. */
+	static final String FROM_CHAT = " · from chat";
 	/** Below this much active time the per-hour rate is not shown, as it would swing wildly. */
 	private static final long MIN_ACTIVE_MILLIS = 10_000L;
 	/** The time range the profit is shown for. */
@@ -59,6 +61,14 @@ public final class ProfitTracker {
 		public String name;
 		public long count;
 		public double lastPrice;
+		/** Whether it came as a drop the server announced (a rare drop, an RNG meter drop, a loot share): such a drop is always listed. */
+		public boolean announced;
+		/** Whether a drop of it counted from the chat line alone, as its item never showed (a full inventory, the stash). */
+		public boolean fromChat;
+		/** Its name as listed, with "from chat" where that is so; made once per change. */
+		private String label;
+		private String labelOf;
+		private boolean labelFromChat;
 		/** The id resolved from the name when the item's own id has no price, and when it was resolved. */
 		private String nameId;
 		private long nameCheckedAt;
@@ -66,6 +76,16 @@ public final class ProfitTracker {
 		public Entry(String id, String name) {
 			this.id = id;
 			this.name = name;
+		}
+
+		/** @return its name as the top drops list it: "Flash I", or "Flash I · from chat" when a drop of it counted from the chat line alone */
+		public String label() {
+			if (label == null || !name.equals(labelOf) || labelFromChat != fromChat) {
+				labelOf = name;
+				labelFromChat = fromChat;
+				label = fromChat ? SkyBlockPrices.clean(name) + FROM_CHAT : SkyBlockPrices.clean(name);
+			}
+			return label;
 		}
 
 		/** @return the total value in coins at current prices, or at the last known price when there is none */
@@ -147,6 +167,28 @@ public final class ProfitTracker {
 			return items.isEmpty() && coins == 0 && spent == 0;
 		}
 
+		/** Adds another bucket's gains to this one: what was counted before the profile was known. */
+		void add(Bucket other) {
+			coins += other.coins;
+			spent += other.spent;
+			activeMillis += other.activeMillis;
+			events += other.events;
+			other.counters.forEach((name, count) -> counters.merge(name, count, Long::sum));
+			for (Entry theirs : other.items.values()) {
+				Entry own = items.get(theirs.id);
+				if (own == null) {
+					own = new Entry(theirs.id, theirs.name);
+					items.put(own.id, own);
+				}
+				own.count += theirs.count;
+				own.announced |= theirs.announced;
+				own.fromChat |= theirs.fromChat;
+				if (theirs.lastPrice > 0) {
+					own.lastPrice = theirs.lastPrice;
+				}
+			}
+		}
+
 		void clear() {
 			items.clear();
 			coins = 0;
@@ -176,6 +218,12 @@ public final class ProfitTracker {
 				item.addProperty("name", entry.name);
 				item.addProperty("count", entry.count);
 				item.addProperty("price", entry.lastPrice);
+				if (entry.announced) {
+					item.addProperty("drop", true);
+				}
+				if (entry.fromChat) {
+					item.addProperty("chat", true);
+				}
 				list.add(entry.id, item);
 			}
 			json.add("items", list);
@@ -206,6 +254,8 @@ public final class ProfitTracker {
 						Entry entry = new Entry(element.getKey(), SkyBlockPrices.clean(item.has("name") ? item.get("name").getAsString() : SkyBlockPrices.nameOf(element.getKey())));
 						entry.count = item.has("count") ? item.get("count").getAsLong() : 0;
 						entry.lastPrice = item.has("price") ? item.get("price").getAsDouble() : 0;
+						entry.announced = item.has("drop") && item.get("drop").getAsBoolean();
+						entry.fromChat = item.has("chat") && item.get("chat").getAsBoolean();
 						if (entry.count > 0) {
 							items.put(entry.id, entry);
 						}
@@ -267,6 +317,41 @@ public final class ProfitTracker {
 			double price = SkyBlockPrices.price(id);
 			if (price > 0) {
 				entry.lastPrice = price;
+			}
+		}
+		changes++;
+	}
+
+	/**
+	 * Records a drop the server announced: counted like any gain, and always listed among the top drops, also when it has no price (worth 0 then, but
+	 * never lost silently).
+	 *
+	 * @param fromChat whether its item never showed and it counts from the chat line alone
+	 */
+	public void addDrop(String id, String name, long count, boolean fromChat) {
+		add(id, name, count);
+		for (Bucket bucket : new Bucket[]{session, today, lifetime}) {
+			Entry entry = bucket.items.get(id);
+			if (entry != null) {
+				entry.announced = true;
+				entry.fromChat |= fromChat;
+			}
+		}
+	}
+
+	/** Takes back items counted before that turned out to be no gain. */
+	public void remove(String id, long count) {
+		if (count <= 0 || id == null) {
+			return;
+		}
+		rollDay();
+		for (Bucket bucket : new Bucket[]{session, today, lifetime}) {
+			Entry entry = bucket.items.get(id);
+			if (entry != null) {
+				entry.count -= Math.min(entry.count, count);
+				if (entry.count == 0) {
+					bucket.items.remove(id);
+				}
 			}
 		}
 		changes++;
@@ -379,7 +464,25 @@ public final class ProfitTracker {
 	public List<Entry> top(Range range, int most, SkyBlockPrices.Mode mode) {
 		List<Entry> list = new ArrayList<>(bucket(range).items.values());
 		list.sort(Comparator.comparingDouble((Entry entry) -> entry.value(mode)).reversed().thenComparing(entry -> entry.name, String.CASE_INSENSITIVE_ORDER));
-		return list.size() > most ? new ArrayList<>(list.subList(0, most)) : list;
+		if (list.size() <= most) {
+			return list;
+		}
+		// announced drops are always listed, in place of the least valuable of the rest
+		List<Entry> shown = new ArrayList<>(list.subList(0, most));
+		for (Entry entry : list.subList(most, list.size())) {
+			if (!entry.announced) {
+				continue;
+			}
+			for (int i = shown.size() - 1; i >= 0; i--) {
+				if (!shown.get(i).announced) {
+					shown.remove(i);
+					shown.add(entry);
+					break;
+				}
+			}
+		}
+		shown.sort(Comparator.comparingDouble((Entry entry) -> entry.value(mode)).reversed().thenComparing(entry -> entry.name, String.CASE_INSENSITIVE_ORDER));
+		return shown;
 	}
 
 	public JsonObject toJson() {
@@ -401,6 +504,33 @@ public final class ProfitTracker {
 			lifetime.fromJson(json.getAsJsonObject("lifetime"));
 		}
 		rollDay();
+		changes++;
+	}
+
+	/** Takes the saved values of another profile in place of its own (today and all time); the session goes on. Null for a profile without any. */
+	public void replaceSaved(JsonObject json) {
+		today.clear();
+		today.day = "";
+		lifetime.clear();
+		fromJson(json);
+		if (json == null) {
+			rollDay();
+			changes++;
+		}
+	}
+
+	/** Adds saved values to its own: all time always, today only when it is the same day. */
+	public void addSaved(JsonObject json) {
+		if (json == null) {
+			return;
+		}
+		ProfitTracker other = new ProfitTracker();
+		other.fromJson(json);
+		rollDay();
+		lifetime.add(other.lifetime);
+		if (other.today.day.equals(today.day)) {
+			today.add(other.today);
+		}
 		changes++;
 	}
 

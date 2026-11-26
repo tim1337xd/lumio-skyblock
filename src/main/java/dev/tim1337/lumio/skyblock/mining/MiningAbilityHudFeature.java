@@ -1,6 +1,10 @@
 package dev.tim1337.lumio.skyblock.mining;
 
+import dev.tim1337.lumio.api.experimental.debug.DebugHooks;
+import dev.tim1337.lumio.skyblock.SkyBlockDebug;
 import dev.tim1337.lumio.api.LumioApi;
+import dev.tim1337.lumio.skyblock.data.SkyBlockIsland;
+import dev.tim1337.lumio.skyblock.data.StorageTracker;
 import dev.tim1337.lumio.api.draw.Canvas;
 import dev.tim1337.lumio.api.experimental.draw.BlockStyle;
 import dev.tim1337.lumio.api.experimental.draw.Draw;
@@ -8,7 +12,6 @@ import dev.tim1337.lumio.api.experimental.draw.HudTheme;
 import dev.tim1337.lumio.api.experimental.draw.WorldDraw;
 import dev.tim1337.lumio.api.experimental.hud.HudEditor;
 import dev.tim1337.lumio.api.feature.AddonPanel;
-import dev.tim1337.lumio.api.feature.SettingGroup;
 import dev.tim1337.lumio.api.setting.Choice;
 import dev.tim1337.lumio.api.setting.ColorChoice;
 import dev.tim1337.lumio.api.setting.Slider;
@@ -73,6 +76,11 @@ import java.util.regex.Pattern;
 public class MiningAbilityHudFeature extends AddonPanel {
 	private static final Pattern USED = Pattern.compile("You used your (.+?) Pickaxe Ability!");
 	private static final Pattern READY = Pattern.compile("^(.+?) is now available!");
+	/** "This ability is on cooldown for 12s.", when it is used too early. */
+	private static final Pattern ON_COOLDOWN = Pattern.compile("This ability is on cooldown for (\\d+)s");
+	/** Sky Mall's buff of the day, announced when it changes. */
+	private static final String SKY_MALL_COOLDOWN = "-20% Pickaxe Ability cooldowns";
+	private static final String SKY_MALL_NEW_BUFF = "New buff:";
 	private static final Pattern EXPIRED = Pattern.compile("Your (.+?) has expired!");
 	/** A widget line: the ability name and "Available", or the remaining time as "1m 5s", "65s" or "1:05". */
 	private static final Pattern WIDGET_LINE = Pattern.compile("^(.+?):\\s*(Available|AVAILABLE|READY|Ready|(?:(\\d+)\\s*m)?\\s*(?:(\\d+)\\s*s)?|(\\d+):(\\d{2}))\\b.*$");
@@ -80,8 +88,6 @@ public class MiningAbilityHudFeature extends AddonPanel {
 	private static final Pattern LORE_ABILITY = Pattern.compile("^Ability:\\s*(.+?)\\s+(?:RIGHT CLICK|Right Click)", Pattern.CASE_INSENSITIVE);
 	/** The ability's active phase in the lore: "... for 20s". */
 	private static final Pattern LORE_DURATION = Pattern.compile("\\bfor\\s+(\\d+)s\\b");
-	/** After a use the player list still shows the time from before for a moment: it is not read then. */
-	private static final long TAB_LATE_MILLIS = 2000L;
 	/** A share of white in the bar's color while the ability is active, so draining and filling look apart. */
 	private static final float ACTIVE_LIGHTER = 0.4f;
 
@@ -89,24 +95,24 @@ public class MiningAbilityHudFeature extends AddonPanel {
 		PanelLooks.Abilities::displayName, Choice.Style.SEGMENTED), "General");
 	private final Toggle showName = add(make().toggle("show_name", Component.literal("Ability name"), true), "General");
 	private final Toggle showIcon = add(make().toggle("show_icon", Component.literal("Icon"), true), "General");
-	private final ColorChoice barColor = add(make().color("bar_color", Component.literal("Cooldown color"), SystemColors.ORANGE_RGB).withOpacity(1f).inRow("Colors"), "General");
-	private final ColorChoice readyColor = add(make().color("ready_color", Component.literal("Ready color"), SystemColors.GREEN_RGB).withOpacity(1f).inRow("Colors"), "General");
+	private final ColorChoice barColor = add(make().color("bar_color", Component.literal("Cooldown color"), SystemColors.ORANGE_RGB).ownColorOnly().withOpacity(1f).inRow("Colors"), "General");
+	private final ColorChoice readyColor = add(make().color("ready_color", Component.literal("Ready color"), SystemColors.GREEN_RGB).ownColorOnly().withOpacity(1f).inRow("Colors"), "General");
 	private final Toggle showSeconds = add(make().toggle("show_seconds", Component.literal("Time left"), true), "General");
 
 	private final Toggle readyNotice = add(make().toggle("ready_notice", Component.literal("Ready notification"), true), "Ready alert");
 	private final Toggle readySound = add(make().toggle("ready_sound", Component.literal("Sound"), true), "Ready alert");
-	private final Slider readyVolume = add(make().slider("ready_volume", Component.literal("Volume"), 0.8f, 0.1f, 1f, 2).percent(), "Ready alert");
+	private final Slider readyVolume = add(make().slider("ready_volume", Component.literal("Volume"), 0.8f, 0.05f, 1f, 2).percent(), "Ready alert");
 	{
 		readySound.under(readyNotice);
 		readyVolume.under(readySound);
 	}
 
 	private final Toggle pickobulus = add(make().toggle("pickobulus", Component.literal("Pickobulus preview"), false), "Pickobulus",
-		"Shows the blocks its blast breaks where you aim");
+		"The blocks its blast breaks");
 	private final Toggle pickobulusReady = add(make().toggle("pickobulus_ready", Component.literal("Only when ready"), false), "Pickobulus");
 	private final ColorChoice pickobulusColor = add(make().color("pickobulus_color", Component.literal("Color"), SystemColors.BLUE_RGB).followsMenu(), "Pickobulus");
 	private final Toggle pickobulusFull = add(make().toggle("pickobulus_full", Component.literal("Full blocks"), false), "Pickobulus",
-		"Off: only what is there, such as a slab or snow");
+		"Off: the real shape (slabs, snow)");
 	{
 		pickobulusFull.under(pickobulus);
 		pickobulusReady.under(pickobulus);
@@ -123,36 +129,29 @@ public class MiningAbilityHudFeature extends AddonPanel {
 	private String ability = "";
 	/** Whether this use's ready notice was shown. */
 	private boolean noticed;
-	/** When the ability is ready again, or 0 if it is ready. */
-	private long readyAt;
+	/** The cooldown's clock: when it is ready, how long this use's is, its base, and what the server said. */
+	private final AbilityClock clock = new AbilityClock(text -> DebugHooks.log(SkyBlockDebug.MINING, "Pickaxe ability: {}", text));
+	/** Whether Sky Mall's "-20% Pickaxe Ability cooldowns" is the buff now, from the chat when it changes. */
+	private boolean skyMallCooldown;
+	/** The profile the cooldown belongs to. */
+	private String cooldownProfile;
 
 	/** @return whether the pickaxe ability can be used right now, as far as known */
 	public boolean abilityReady() {
-		return readyAt == 0 || System.currentTimeMillis() >= readyAt;
+		return clock.readyAt == 0 || System.currentTimeMillis() >= clock.readyAt;
 	}
-	/** Cooldown duration: measured once it was used and became ready again; until then the default with Heart of the Mountain perks. */
-	private long cooldownMillis = 60_000L;
-	/** The cooldown of the running use, taken when it started: what the bar fills over. */
-	private long totalMillis = 60_000L;
 	/** How long the ability is active after a use, from the lore; 0 when unknown. */
 	private long activeMillis;
-	/** Whether the held item's lore states the cooldown (it includes the player's reductions). */
-	private boolean loreCooldown;
-	/** Whether this use's whole cooldown was taken from the player list already. */
-	private boolean totalFromList;
 	/** Whether the ability is currently active (between use and expiry). */
 	private boolean active;
 	private long activeSince;
 	private boolean wasReady = true;
 	private boolean knownFromWidget;
-	/** Whether the cooldown was measured, from use to the ready message, or taken from the widget. */
-	private boolean learnedCooldown;
-	/** When the ability was used, for measuring the cooldown; 0 if not. */
-	private long usedAt;
 
 	public MiningAbilityHudFeature() {
-		super("mining_ability", "Abilities", "The pickaxe ability: a ring that fills as its cooldown runs and turns green when it is ready, or one simple row.", true,
+		super("mining_ability", "Abilities", "Your pickaxe ability's cooldown.", true,
 			Anchor.RIGHT, true, 12f, 60f);
+		pageGroup("Panels");
 		iconRgb(SystemColors.ORANGE_RGB);
 		iconName("pickaxe");
 		summary("The cooldown of your pickaxe ability");
@@ -160,6 +159,17 @@ public class MiningAbilityHudFeature extends AddonPanel {
 		offerCardSize();
 		offerModes(look);
 		offerHeader();
+		showIcon.visibleWhen(this::simple);
+	}
+
+	/** @return whether Sky Mall's shorter cooldown counts for a use here: its buff is the cooldown's, and it only works in the Dwarven Mines (with the Glacite
+	 *         Tunnels) and the Crystal Hollows, not in a Glacite Mineshaft */
+	private boolean skyMallHere() {
+		if (!skyMallCooldown) {
+			return false;
+		}
+		SkyBlockIsland island = SkyBlockIsland.ofArea(SkyBlockArea.island());
+		return island == SkyBlockIsland.DWARVEN_MINES || island == SkyBlockIsland.CRYSTAL_HOLLOWS;
 	}
 
 	private boolean allowedHere() {
@@ -187,13 +197,27 @@ public class MiningAbilityHudFeature extends AddonPanel {
 			ability = matcher.group(1).strip();
 			active = true;
 			activeSince = now;
-			totalMillis = cooldownMillis;
-			readyAt = now + totalMillis;
+			clock.used(now, skyMallHere());
 			wasReady = false;
-			usedAt = now;
-			totalFromList = false;
 			noticed = false;
 			ProfitActivity.pickaxeAbilityUsed();
+			return;
+		}
+		matcher = ON_COOLDOWN.matcher(text);
+		if (matcher.find() && matcher.group(1).length() <= 4) {
+			clock.onCooldownFor(now, Long.parseLong(matcher.group(1)));
+			return;
+		}
+		if (text.contains(SKY_MALL_COOLDOWN)) {
+			skyMallCooldown = true;
+			if (DebugHooks.ACTIVE) {
+				DebugHooks.log(SkyBlockDebug.MINING, "Pickaxe ability: Sky Mall buff is -20% cooldowns");
+			}
+			return;
+		}
+		if (text.startsWith(SKY_MALL_NEW_BUFF)) {
+			// another buff of the day
+			skyMallCooldown = false;
 			return;
 		}
 		matcher = EXPIRED.matcher(text);
@@ -204,14 +228,11 @@ public class MiningAbilityHudFeature extends AddonPanel {
 		matcher = READY.matcher(text);
 		if (matcher.find() && (!ability.isEmpty() && matcher.group(1).strip().equalsIgnoreCase(ability) || text.contains("Mining Speed Boost") || text.contains("Pickobulus"))) {
 			ability = matcher.group(1).strip();
-			// the time from use to this message is the cooldown including the player's perks: remember it for next time
-			if (usedAt > 0 && now - usedAt > 5_000L && now - usedAt < 400_000L) {
-				cooldownMillis = now - usedAt;
-				learnedCooldown = true;
+			// the time from use to this message is the base cooldown, without the reduction of then: remembered for next time
+			clock.available(now);
+			if (clock.learned) {
 				LumioApi.saveSoon();
 			}
-			usedAt = 0;
-			readyAt = 0;
 			active = false;
 		}
 	}
@@ -251,9 +272,9 @@ public class MiningAbilityHudFeature extends AddonPanel {
 			}
 			Matcher cooldown = LORE_COOLDOWN.matcher(text);
 			if (cooldown.find() && cooldown.group(1).length() <= 4) {
-				cooldownMillis = Long.parseLong(cooldown.group(1)) * 1000L;
-				activeMillis = duration < cooldownMillis ? duration : 0L;
-				loreCooldown = true;
+				long base = Long.parseLong(cooldown.group(1)) * 1000L;
+				clock.lore(base);
+				activeMillis = duration < base ? duration : 0L;
 				return;
 			}
 		}
@@ -268,7 +289,7 @@ public class MiningAbilityHudFeature extends AddonPanel {
 		long now = System.currentTimeMillis();
 		// right after a use, and while the ability is active, the list still shows a time from before (such as a few seconds): it is read only
 		// after that, to correct the running timer, and never starts one; the list is not marked read meanwhile
-		if (tab == readTab || usedAt > 0 && (now - usedAt < TAB_LATE_MILLIS || inActivePhase(now))) {
+		if (tab == readTab) {
 			return;
 		}
 		readTab = tab;
@@ -288,33 +309,11 @@ public class MiningAbilityHudFeature extends AddonPanel {
 				ability = matcher.group(1).strip();
 				String status = matcher.group(2).strip();
 				if (status.equalsIgnoreCase("Available") || status.equalsIgnoreCase("Ready")) {
-					// right after use the list still shows it active for a few seconds: keep the counted cooldown
-					if (now - usedAt > 8000L) {
-						readyAt = 0;
-					}
+					clock.tab(now, -1L, inActivePhase(now));
 				} else if (matcher.group(3) != null || matcher.group(4) != null || matcher.group(5) != null) {
 					long minutes = number(matcher.group(5) != null ? matcher.group(5) : matcher.group(3));
 					long seconds = number(matcher.group(6) != null ? matcher.group(6) : matcher.group(4));
-					long left = (minutes * 60 + seconds) * 1000L;
-					// The list only refreshes every few seconds, so it always shows slightly more than what is left: keep the counted time, and only adopt
-					// the list's value when there is none, or when it is clearly lower (cooldown reduced). It never raises a running timer (a new use comes with
-					// its own message), and a cooldown counted down to zero is not restarted by the few seconds the list still shows.
-					boolean known = readyAt != 0;
-					long counted = known ? readyAt - now : -1;
-					boolean ranOut = known && counted <= 0 && left <= 8000L;
-					if (!ranOut && (!known || left < counted - 1500)) {
-						readyAt = now + left;
-					}
-					// a pickaxe that does not state its cooldown: the first time the list gives after a use, with the time since, is the whole
-					// cooldown, so the bar is full exactly when it is ready
-					if (!loreCooldown && !totalFromList && left > 0 && usedAt > 0) {
-						totalFromList = true;
-						cooldownMillis = Math.max(1000L, left + (now - usedAt));
-						totalMillis = cooldownMillis;
-						learnedCooldown = true;
-					}
-					// a correction never leaves the bar's whole shorter than what is left
-					totalMillis = Math.max(totalMillis, readyAt - now);
+					clock.tab(now, (minutes * 60 + seconds) * 1000L, inActivePhase(now));
 				}
 			}
 			return;
@@ -364,18 +363,26 @@ public class MiningAbilityHudFeature extends AddonPanel {
 
 	/** @return how full the bar is: while active it drains over the active phase, then it fills over the whole cooldown of this use */
 	private float fraction(long now) {
-		if (readyAt == 0 || now >= readyAt) {
+		if (clock.readyAt == 0 || now >= clock.readyAt) {
 			return 1f;
 		}
 		if (activeMillis > 0L && inActivePhase(now)) {
 			return Mth.clamp(1f - (now - activeSince) / (float) activeMillis, 0f, 1f);
 		}
-		return Mth.clamp(1f - (readyAt - now) / (float) Math.max(1000L, totalMillis), 0f, 1f);
+		return Mth.clamp(1f - (clock.readyAt - now) / (float) Math.max(1000L, clock.totalMillis), 0f, 1f);
 	}
 
 	@Override
 	public void prepare(Minecraft client) {
 		if (allowedHere() && client.level != null) {
+			// the cooldown belongs to a profile: another one starts without it. A server switch keeps it.
+			String profile = StorageTracker.profile();
+			if (profile != null && !profile.equals(cooldownProfile)) {
+				if (cooldownProfile != null) {
+					clock.reset("another profile");
+				}
+				cooldownProfile = profile;
+			}
 			readWidget();
 			readHeld(client);
 		}
@@ -383,7 +390,7 @@ public class MiningAbilityHudFeature extends AddonPanel {
 		boolean editing = HudEditor.isOpen();
 		// in the editor it only counts as shown while it is simulated; asked for in the list, the main mod draws it anyway
 		shownAmount.follow(simulated() || wanted(client) ? 1f : 0f);
-		boolean ready = readyAt == 0 || now >= readyAt;
+		boolean ready = clock.readyAt == 0 || now >= clock.readyAt;
 		if (ready && !wasReady) {
 			readyMoment.start();
 			// once per use: the counted cooldown and the server's message can both bring it back to ready, a moment apart
@@ -406,7 +413,7 @@ public class MiningAbilityHudFeature extends AddonPanel {
 		if (simulated != null && simulated.isMining()) {
 			fill.follow(SkyBlockSimulation.option() == Activity.ABILITY_READY ? 1f : SIMULATED_COOLDOWN);
 		} else {
-			fill.follow(editing && readyAt == 0 ? 0.62f : fraction(now));
+			fill.follow(editing && clock.readyAt == 0 ? 0.62f : fraction(now));
 		}
 	}
 
@@ -472,10 +479,10 @@ public class MiningAbilityHudFeature extends AddonPanel {
 			long now = System.currentTimeMillis();
 			float value = Mth.clamp(fill.value(), 0f, 1f);
 			Activity simulated = SkyBlockSimulation.active() ? SkyBlockSimulation.activity() : null;
-			boolean ready = simulated != null && simulated.isMining() ? SkyBlockSimulation.option() == Activity.ABILITY_READY : readyAt == 0 || now >= readyAt;
+			boolean ready = simulated != null && simulated.isMining() ? SkyBlockSimulation.option() == Activity.ABILITY_READY : clock.readyAt == 0 || now >= clock.readyAt;
 			// while active the bar drains over the active phase in a lighter shade, and the seconds are those of the active phase
 			boolean draining = !ready && simulated == null && activeMillis > 0L && inActivePhase(now);
-			long until = draining ? activeSince + activeMillis : readyAt;
+			long until = draining ? activeSince + activeMillis : clock.readyAt;
 			long left = ready ? 0 : simulated != null ? SIMULATED_SECONDS : (long) Math.ceil((until - now) / 1000.0);
 			if (left != shownSeconds) {
 				shownSeconds = left;
@@ -618,8 +625,8 @@ public class MiningAbilityHudFeature extends AddonPanel {
 	@Override
 	public JsonObject save() {
 		JsonObject json = super.save();
-		if (learnedCooldown) {
-			json.addProperty("learned_cooldown_ms", cooldownMillis);
+		if (clock.learned) {
+			json.addProperty("learned_cooldown_ms", clock.baseMillis);
 		}
 		return json;
 	}
@@ -629,8 +636,8 @@ public class MiningAbilityHudFeature extends AddonPanel {
 		super.load(json);
 		if (json.has("learned_cooldown_ms")) {
 			try {
-				cooldownMillis = Math.max(1000L, json.get("learned_cooldown_ms").getAsLong());
-				learnedCooldown = true;
+				clock.baseMillis = Math.max(1000L, json.get("learned_cooldown_ms").getAsLong());
+				clock.learned = true;
 			} catch (RuntimeException ignored) {
 			}
 		}

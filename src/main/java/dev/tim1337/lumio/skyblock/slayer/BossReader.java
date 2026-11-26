@@ -1,8 +1,9 @@
 package dev.tim1337.lumio.skyblock.slayer;
 
-import dev.tim1337.lumio.skyblock.SkyBlockFeatures;
+import dev.tim1337.lumio.api.experimental.debug.DebugHooks;
 import dev.tim1337.lumio.api.experimental.draw.SystemColors;
-import dev.tim1337.lumio.api.experimental.util.Debug;
+import dev.tim1337.lumio.skyblock.SkyBlockDebug;
+import dev.tim1337.lumio.skyblock.SkyBlockFeatures;
 import dev.tim1337.lumio.skyblock.data.SkyBlockArea;
 import dev.tim1337.lumio.skyblock.profit.Slayer;
 
@@ -107,7 +108,7 @@ final class BossReader {
 		// the hits of a shield on a line of their own, below or above the boss's name, when the server writes them apart
 		String hitsLine = null;
 		double hitsDistance = Double.MAX_VALUE;
-		StringBuilder debugLines = Debug.on() ? new StringBuilder() : null;
+		StringBuilder debugLines = DebugHooks.ACTIVE ? new StringBuilder() : null;
 		for (SlayerTag tag : tags) {
 			// a boss that hatched from a cocoon has its tags spaced slightly further apart
 			double distance = tag.entity().distanceTo(spawnedBy);
@@ -388,7 +389,9 @@ final class BossReader {
 		if (!lines.equals(loggedTags)) {
 			loggedTags = lines;
 			long since = fightStartedAt == 0 ? 0 : System.currentTimeMillis() - fightStartedAt;
-			Debug.log("Slayer boss tags +{} ms: {}", since, lines);
+			if (DebugHooks.ACTIVE) {
+				DebugHooks.log(SkyBlockDebug.SLAYER, "Slayer boss tags +{} ms: {}", since, lines);
+			}
 		}
 	}
 

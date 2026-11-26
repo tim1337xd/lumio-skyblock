@@ -33,10 +33,6 @@ crash-*.txt
 /colored-report/
 /test-screenshots/
 
-# Local client game tests and their Gradle setup
-src/gametest/
-gametest.gradle
-
 # Local backups of src/ between work steps
 backups/
 

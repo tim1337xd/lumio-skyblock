@@ -1,7 +1,8 @@
 package dev.tim1337.lumio.skyblock.data;
 
-import dev.tim1337.lumio.api.experimental.util.Debug;
+import dev.tim1337.lumio.api.experimental.debug.DebugHooks;
 import dev.tim1337.lumio.api.experimental.util.HttpLimits;
+import dev.tim1337.lumio.skyblock.SkyBlockDebug;
 
 import com.google.gson.JsonParser;
 
@@ -79,7 +80,9 @@ public final class Mayor {
 		} catch (Exception e) {
 			// retry in a minute
 			askedAt = System.currentTimeMillis() - 19 * 60_000L;
-			Debug.log("Could not fetch the mayor: {}", e.toString());
+			if (DebugHooks.ACTIVE) {
+				DebugHooks.log(SkyBlockDebug.PRICES, "Could not fetch the mayor: {}", e.toString());
+			}
 		}
 	}
 }

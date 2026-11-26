@@ -49,4 +49,5 @@ class SkyBlockAmbienceTest {
 		assertFalse(SkyBlockAmbience.has("mood:ash", null, SkyBlockAmbience.SPRING));
 		assertFalse(SkyBlockAmbience.has("something", SkyBlockIsland.HUB, SkyBlockAmbience.SPRING));
 	}
+
 }

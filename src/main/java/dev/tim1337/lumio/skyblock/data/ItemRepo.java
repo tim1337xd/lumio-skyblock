@@ -1,9 +1,12 @@
 package dev.tim1337.lumio.skyblock.data;
 
-import dev.tim1337.lumio.api.experimental.util.Debug;
+import dev.tim1337.lumio.api.experimental.debug.DebugHooks;
 import dev.tim1337.lumio.api.experimental.util.HttpLimits;
 import dev.tim1337.lumio.api.experimental.util.Logs;
 import dev.tim1337.lumio.api.experimental.util.ModFiles;
+import dev.tim1337.lumio.api.experimental.util.TextColors;
+import dev.tim1337.lumio.skyblock.SkyBlockDebug;
+import dev.tim1337.lumio.skyblock.chat.ContactCompletion;
 
 import com.google.common.collect.LinkedHashMultimap;
 import com.google.gson.JsonArray;
@@ -52,14 +55,15 @@ import java.util.zip.ZipInputStream;
 /**
  * Every Hypixel SkyBlock item with its recipes, from the NotEnoughUpdates repository, which Firmament, SkySoft and other item list mods read as
  * well. It is downloaded as one zip into the mod folder at most once a day and parsed on a background thread: several thousand items with their
- * ingredients, what they craft into, NPC prices and wiki links.
+ * ingredients, what they craft into and NPC prices.
  */
 public final class ItemRepo {
 	private static final String URL = "https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO/archive/refs/heads/master.zip";
 	private static final long REFRESH_MS = 24 * 3_600_000L;
 	private static final Pattern ITEM_MODEL = Pattern.compile("ItemModel:\"([a-z0-9_.-]+:[a-z0-9_./-]+)\"");
 	private static final Pattern TEXTURE = Pattern.compile("Value:\"([A-Za-z0-9+/=]+)\"");
-	private static final Pattern COLOR = Pattern.compile("§.");
+	/** A rarity line of the lore without its colors: capitals and spaces only ("LEGENDARY SWORD"). */
+	private static final Pattern RARITY_LINE = Pattern.compile("^[A-Z ]+$");
 
 	/** A SkyBlock item as defined in the repository. */
 	public static final class Entry {
@@ -70,31 +74,43 @@ public final class ItemRepo {
 		final String searchLore;
 		final String searchId;
 		public final List<String> lore;
-		public final String wiki;
 		/** Whether SkyBlock has a crafting menu for it via /viewrecipe, as indicated by the repository's click command. */
 		public final boolean craftable;
 		final String itemId;
 		final String model;
 		final String texture;
 		private ItemStack stack;
+		/** The name without colors and the rarity color, kept: tiles ask for both every frame. 0 for a color not yet read (a read one is opaque). */
+		private final String plainName;
+		private int rarityColor;
 
-		Entry(String id, String name, List<String> lore, String wiki, String itemId, String model, String texture, boolean craftable) {
+		Entry(String id, String name, List<String> lore, String itemId, String model, String texture, boolean craftable) {
 			this.id = id;
 			this.craftable = craftable;
 			this.name = name;
 			this.lore = lore;
-			this.wiki = wiki;
 			this.itemId = itemId;
 			this.model = model;
 			this.texture = texture;
-			this.searchName = plain(name).toLowerCase(Locale.ROOT);
+			this.plainName = plain(name);
+			this.searchName = plainName.toLowerCase(Locale.ROOT);
 			this.searchLore = plain(String.join(" ", lore)).toLowerCase(Locale.ROOT);
 			this.searchId = id.toLowerCase(Locale.ROOT);
 		}
 
+		/** @return whether the item is a head with a skin of its own (the skin comes with the item list, nothing is looked up) */
+		public boolean head() {
+			return texture != null && !texture.isEmpty();
+		}
+
+		/** @return the game's item it is drawn as ("minecraft:diamond_pickaxe"), or null */
+		public String gameItemId() {
+			return itemId;
+		}
+
 		/** @return the display name without colors */
 		public String plainName() {
-			return plain(name);
+			return plainName;
 		}
 
 		/** @return the item as rendered and as shown in its tooltip; created lazily on the game thread on first access */
@@ -107,12 +123,19 @@ public final class ItemRepo {
 
 		/** @return the rarity color from the last lore line ("§6§lLEGENDARY SWORD"), or white */
 		public int rarityColor() {
+			if (rarityColor == 0) {
+				rarityColor = readRarityColor();
+			}
+			return rarityColor;
+		}
+
+		private int readRarityColor() {
 			for (int i = lore.size() - 1; i >= 0; i--) {
 				String line = lore.get(i);
 				if (line.length() >= 2 && line.charAt(0) == '§') {
 					var format = ChatFormatting.getByCode(line.charAt(1));
 					var color = format == null ? null : TextColor.fromLegacyFormat(format);
-					if (color != null && plain(line).matches("^[A-Z ]+$")) {
+					if (color != null && RARITY_LINE.matcher(plain(line)).matches()) {
 						return 0xFF000000 | color.getValue();
 					}
 				}
@@ -176,8 +199,17 @@ public final class ItemRepo {
 	private static volatile Map<String, Entry> byId = Map.of();
 	/** The ids of the items sacks hold, from the repository's sack list (for the /gfs suggestions). */
 	private static volatile List<String> sackItems = List.of();
+	/** The Abiphone's contacts, with the names /call knows them by; empty until the repository is read. */
+	private static volatile List<ContactCompletion.Contact> abiphoneContacts = List.of();
 	private static volatile EnchantTiers enchantTiers = EnchantTiers.EMPTY;
 	private static volatile RepoPetSkins petSkins = RepoPetSkins.EMPTY;
+	/** The Bazaar product of each attribute shard by the item list's name of it, from its constants; empty until the repository is read. */
+	private static volatile Map<String, String> shardProducts = Map.of();
+	/** The Bazaar product of each shard by its name, lower case without "Shard". */
+	private static volatile Map<String, String> shardsByName = Map.of();
+	/** The Bazaar product of each enchanted book by its name ("chimera i" is ENCHANTMENT_ULTIMATE_CHIMERA_1), and the name of each product. */
+	private static volatile Map<String, String> bookByName = Map.of();
+	private static volatile Map<String, String> bookNameOf = Map.of();
 	private static volatile List<RepoWarps.Warp> warps = List.of();
 	private static volatile LinkedHashMultimap<String, Recipe> recipesFor = LinkedHashMultimap.create();
 	private static volatile LinkedHashMultimap<String, Recipe> usagesOf = LinkedHashMultimap.create();
@@ -257,7 +289,9 @@ public final class ItemRepo {
 						if (!Files.exists(file)) {
 							throw e;
 						}
-						Debug.log("Could not download the items again, the old ones are used: {}", e.toString());
+						if (DebugHooks.ACTIVE) {
+							DebugHooks.log(SkyBlockDebug.PRICES, "Could not download the items again, the old ones are used: {}", e.toString());
+						}
 					}
 				}
 				state = "Reading the items";
@@ -323,6 +357,10 @@ public final class ItemRepo {
 					readSacks(zip, sacks);
 					continue;
 				}
+				if (!entry.isDirectory() && name.endsWith(ABIPHONE_FILE)) {
+					readAbiphone(zip);
+					continue;
+				}
 				if (!entry.isDirectory() && name.endsWith(ENCHANTS_FILE)) {
 					readEnchants(zip);
 					continue;
@@ -333,6 +371,10 @@ public final class ItemRepo {
 				}
 				if (!entry.isDirectory() && name.endsWith(PET_SKINS_FILE)) {
 					readPetSkins(zip);
+					continue;
+				}
+				if (!entry.isDirectory() && name.endsWith(SHARDS_FILE)) {
+					readShards(zip);
 					continue;
 				}
 				if (entry.isDirectory() || !name.contains("/items/") || !name.endsWith(".json")) {
@@ -375,20 +417,10 @@ public final class ItemRepo {
 						lore.add(filled(line.getAsString()));
 					}
 				}
-				String wiki = "";
-				if (json.has("info") && json.get("info").isJsonArray()) {
-					for (JsonElement link : json.getAsJsonArray("info")) {
-						String url = link.getAsString();
-						if (url.startsWith("https://")) {
-							wiki = url;
-							break;
-						}
-					}
-				}
 				String nbt = string(json, "nbttag");
 				Matcher model = ITEM_MODEL.matcher(nbt);
 				Matcher texture = TEXTURE.matcher(nbt);
-				Entry item = new Entry(id, filled(LEVEL.matcher(string(json, "displayname")).replaceFirst("")), Collections.unmodifiableList(lore), wiki, string(json, "itemid"),
+				Entry item = new Entry(id, filled(LEVEL.matcher(string(json, "displayname")).replaceFirst("")), Collections.unmodifiableList(lore), string(json, "itemid"),
 					model.find() ? model.group(1) : "", texture.find() ? texture.group(1) : "", string(json, "clickcommand").equals("viewrecipe"));
 				(source ? others : list).add(item);
 				ids.put(id, item);
@@ -400,9 +432,22 @@ public final class ItemRepo {
 		ofSource = fromSources;
 		recipeCounts = Map.copyOf(counts);
 		unreadKinds = Map.copyOf(unread);
-		Debug.log("Item repository: recipes by kind {}, not read {}, {} items, {} mobs and NPCs", recipeCounts, unreadKinds, list.size(), others.size());
+		if (DebugHooks.ACTIVE) {
+			DebugHooks.log(SkyBlockDebug.PRICES, "Item repository: recipes by kind {}, not read {}, {} items, {} mobs and NPCs", recipeCounts, unreadKinds, list.size(), others.size());
+		}
 		sackItems = List.copyOf(sacks);
 		byId = ids;
+		Map<String, String> bookProducts = new java.util.HashMap<>();
+		Map<String, String> bookNames = new java.util.HashMap<>();
+		for (Entry entry : list) {
+			String product = ENCHANTED_BOOK.equals(entry.itemId) ? PriceKeys.bookProduct(entry.id) : null;
+			if (product != null) {
+				bookProducts.putIfAbsent(entry.plainName().toLowerCase(java.util.Locale.ROOT), product);
+				bookNames.putIfAbsent(product, entry.plainName());
+			}
+		}
+		bookByName = Map.copyOf(bookProducts);
+		bookNameOf = Map.copyOf(bookNames);
 		enchantTiers.addBooks(books);
 		recipesFor = recipes;
 		usagesOf = usages;
@@ -418,7 +463,9 @@ public final class ItemRepo {
 		try {
 			books.merge(id.substring(0, split).toLowerCase(java.util.Locale.ROOT), Integer.parseInt(id.substring(split + 1)), Math::max);
 		} catch (NumberFormatException e) {
-			Debug.log("A book in the item repository without a level: {}", id);
+			if (DebugHooks.ACTIVE) {
+				DebugHooks.log(SkyBlockDebug.PRICES, "A book in the item repository without a level: {}", id);
+			}
 		}
 	}
 
@@ -426,6 +473,7 @@ public final class ItemRepo {
 	private static final String ENCHANTS_FILE = "/constants/enchants.json";
 	private static final String ISLANDS_FILE = "/constants/islands.json";
 	private static final String PET_SKINS_FILE = "/constants/animatedskulls.json";
+	private static final String SHARDS_FILE = "/constants/attribute_shards.json";
 
 	/** Reads how many levels each enchant has. A file it cannot read adds nothing. */
 	private static void readEnchants(ZipInputStream zip) {
@@ -452,6 +500,37 @@ public final class ItemRepo {
 		} catch (RuntimeException e) {
 			Logs.warn("Could not read the pet skins of the item repository", e);
 		}
+	}
+
+	/** Reads which Bazaar product each attribute shard is. A file it cannot read adds nothing. */
+	private static void readShards(ZipInputStream zip) {
+		try {
+			JsonObject constants = JsonParser.parseReader(new InputStreamReader(new NonClosing(zip), StandardCharsets.UTF_8)).getAsJsonObject();
+			shardProducts = Map.copyOf(PriceKeys.shardProducts(constants));
+			shardsByName = Map.copyOf(PriceKeys.shardsByName(constants));
+		} catch (RuntimeException e) {
+			Logs.warn("Could not read the attribute shards of the item repository", e);
+		}
+	}
+
+	/** @return the Bazaar product of an enchanted book by the name its enchantment shows ("Chimera I"), or null when the repository does not know it */
+	public static String bookProduct(String name) {
+		return name == null ? null : bookByName.get(name.strip().toLowerCase(java.util.Locale.ROOT));
+	}
+
+	/** @return the name a book's enchantment shows ("Chimera I") by its Bazaar product, or null when the repository does not know it */
+	public static String bookName(String product) {
+		return product == null ? null : bookNameOf.get(product);
+	}
+
+	/** @return the Bazaar product of a shard by its name without "Shard" ("Flaming Spider" is SHARD_FLAMING_SPIDER) */
+	public static String shardByName(String name) {
+		return PriceKeys.shardProduct(name, shardsByName::get);
+	}
+
+	/** @return the Bazaar product of an attribute shard by the item list's name of it ("ATTRIBUTE_SHARD_ARACHNO;1"), or null */
+	public static String shardProduct(String internalName) {
+		return internalName == null ? null : shardProducts.get(internalName);
 	}
 
 	/** @return the animated pet skins and the skins with variants, {@link RepoPetSkins#EMPTY} until the repository is read */
@@ -504,6 +583,47 @@ public final class ItemRepo {
 	/** The most sack items kept; SkyBlock has a few hundred. */
 	private static final int MOST_SACK_ITEMS = 2000;
 
+	/** The repository's Abiphone contacts: each by its name, with the names /call knows it by where they differ. */
+	private static final String ABIPHONE_FILE = "/constants/abiphone.json";
+	/** The most contacts kept; SkyBlock has about a hundred. */
+	private static final int MOST_CONTACTS = 500;
+	private static final int MOST_CALL_NAMES = 8;
+	private static final int LONGEST_CONTACT_NAME = 40;
+
+	/** Reads the contacts. A file it cannot read, or an entry that is not as expected, adds nothing. */
+	private static void readAbiphone(ZipInputStream zip) {
+		try {
+			JsonElement root = JsonParser.parseReader(new InputStreamReader(new NonClosing(zip), StandardCharsets.UTF_8));
+			if (!root.isJsonObject()) {
+				return;
+			}
+			List<ContactCompletion.Contact> contacts = new ArrayList<>();
+			for (Map.Entry<String, JsonElement> contact : root.getAsJsonObject().entrySet()) {
+				String name = contact.getKey().strip();
+				if (name.isEmpty() || name.length() > LONGEST_CONTACT_NAME || contacts.size() >= MOST_CONTACTS) {
+					continue;
+				}
+				List<String> calls = new ArrayList<>();
+				if (contact.getValue().isJsonObject() && contact.getValue().getAsJsonObject().get("callNames") instanceof com.google.gson.JsonArray names) {
+					for (JsonElement call : names) {
+						if (call.isJsonPrimitive() && calls.size() < MOST_CALL_NAMES && call.getAsString().length() <= LONGEST_CONTACT_NAME) {
+							calls.add(call.getAsString().toLowerCase(java.util.Locale.ROOT));
+						}
+					}
+				}
+				contacts.add(new ContactCompletion.Contact(name, calls));
+			}
+			abiphoneContacts = List.copyOf(contacts);
+		} catch (RuntimeException e) {
+			Logs.warn("Could not read the Abiphone contacts of the item repository", e);
+		}
+	}
+
+	/** @return the Abiphone's contacts, empty until the repository is read */
+	public static List<ContactCompletion.Contact> abiphoneContacts() {
+		return abiphoneContacts;
+	}
+
 	/** @return the ids of the items sacks can hold, empty until the repository is read */
 	public static List<String> sackItems() {
 		return sackItems;
@@ -527,7 +647,7 @@ public final class ItemRepo {
 	}
 
 	static String plain(String text) {
-		return COLOR.matcher(text).replaceAll("");
+		return TextColors.noColors(text);
 	}
 
 	/** @return how the search matches: 2 for the name, 1 if all words appear somewhere in the lore (when lore search is enabled), 0 for none */
@@ -592,7 +712,9 @@ public final class ItemRepo {
 				SkullTextures.apply(stack, entry.texture);
 			}
 		} catch (RuntimeException e) {
-			Debug.log("Could not make the item {}: {}", entry.id, e.toString());
+			if (DebugHooks.ACTIVE) {
+				DebugHooks.log(SkyBlockDebug.PRICES, "Could not make the item {}: {}", entry.id, e.toString());
+			}
 		}
 		return stack;
 	}

@@ -13,7 +13,7 @@ import net.minecraft.client.multiplayer.ClientChunkCache;
 @Mixin(ClientChunkCache.class)
 public abstract class KeepTerrainChunkCacheMixin {
 	@ModifyVariable(method = "updateViewRadius", at = @At("HEAD"), argsOnly = true, ordinal = 0)
-	private int lumio$keepFar(int radius) {
+	private int evskyblock$keepFar(int radius) {
 		return !SkyBlockAddon.active() ? radius : SkyBlockFeatures.KEEP_TERRAIN.storageRadius(radius);
 	}
 }

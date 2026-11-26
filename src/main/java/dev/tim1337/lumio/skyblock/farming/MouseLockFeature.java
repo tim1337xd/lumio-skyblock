@@ -33,8 +33,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
 /**
- * Locks or slows what the mouse does to the camera in the Garden, by a key or /lumio mouselock, for farming in a straight line: only the mouse's effect on the camera
- * changes, nothing is sent and nothing is automated. A small pill shows while it is on. It always unlocks when the game loses focus, on death, on disconnect, on leaving
+ * Locks or slows what the mouse does to the camera in the Garden, by a key or /lumio mouselock, or by itself while the player farms: a farming tool held, standing on the ground, away from the Barn ("Lock by
+ * itself while farming"), for farming in a straight line: only the mouse's effect on the camera changes, nothing is sent and nothing is moved or pressed. A small pill shows while it is on. It always unlocks when the game loses focus, on death, on disconnect, on leaving
  * the Garden and when the feature is switched off, so the player can never get stuck. The idea is SkyHanni's Mouse Sensitivity Reducer.
  */
 public class MouseLockFeature extends AddonPanel {
@@ -70,11 +70,14 @@ public class MouseLockFeature extends AddonPanel {
 	}
 
 	private final Choice<ModeName> mode = add(make().choice("mode", Component.literal("Mode"), ModeName.LOCK, ModeName::displayName, Choice.Style.SEGMENTED), "General",
-		"Lock: the camera doesn't turn. Slow: for small adjustments");
+		"Slow: for small adjustments");
 	private final Slider percent = add(make().slider("percent", Component.literal("Slow to"), 10f, 1f, 99f, 0), "General");
 	private final Toggle unlockOnTeleport = add(make().toggle("unlock_on_teleport", Component.literal("Unlock when teleporting"), true), "General",
 		"To another plot or the barn");
 	private final Toggle notices = add(make().toggle("notices", Component.literal("Notifications"), true), "General", "A short note when it locks or unlocks");
+	private final Toggle autoLock = add(make().toggle("auto_lock", Component.literal("Lock by itself while farming"), true), "Automatic",
+		"While you farm; lets go at once");
+	private final Toggle lockMark = add(make().toggle("lock_mark", Component.literal("Lock mark"), true), "Automatic");
 
 	{
 		percent.under(mode, () -> mode.get() == ModeName.SLOW);
@@ -87,7 +90,7 @@ public class MouseLockFeature extends AddonPanel {
 	private long lastFrame;
 
 	public MouseLockFeature() {
-		super("mouse_lock", "Mouse lock", "Locks or slows what the mouse does to the camera in the Garden, by a key or /lumio mouselock. Only the camera changes: nothing is sent.", true,
+		super("mouse_lock", "Mouse lock", "Locks the camera. Nothing is sent.", true,
 			Anchor.CENTER, false, 0f, DEFAULT_Y);
 		iconRgb(SystemColors.GREEN_RGB);
 		iconName("lock");
@@ -115,10 +118,22 @@ public class MouseLockFeature extends AddonPanel {
 			toggle();
 		}
 		boolean connected = client.player != null && client.level != null;
-		if (lock.check(isEnabled(), connected, SkyBlockArea.inGarden(), client.isWindowActive(), connected && !client.player.isDeadOrDying()) && connected && isEnabled()) {
+		boolean automatic = lock.automatic();
+		if (lock.check(isEnabled(), connected, SkyBlockArea.inGarden(), client.isWindowActive(), connected && !client.player.isDeadOrDying()) && connected && isEnabled()
+			&& !automatic) {
 			notice("Mouse unlocked");
 		}
+		// the automatic lock comes and goes with the farming, without a note each time; the mark near the crosshair shows it
+		if (connected) {
+			lock.tick(farming());
+		}
 		CameraTurn.set(lock.scale(mode.get().mode, percent.get()));
+	}
+
+	/** @return what the automatic lock looks at now */
+	private MouseLock.Farming farming() {
+		boolean farming = FarmingWatch.farming();
+		return new MouseLock.Farming(isEnabled() && autoLock.get(), farming, FarmingWatch.heldItem());
 	}
 
 	/** Locks or unlocks, as the key and the command do. */
@@ -126,7 +141,15 @@ public class MouseLockFeature extends AddonPanel {
 		if (!isEnabled()) {
 			return;
 		}
-		switch (lock.toggle(SkyBlockArea.inGarden())) {
+		Minecraft client = Minecraft.getInstance();
+		boolean farming = false;
+		String held = "";
+		if (client.player != null) {
+			MouseLock.Farming now = farming();
+			farming = now.farming();
+			held = now.heldItem();
+		}
+		switch (lock.toggle(SkyBlockArea.inGarden(), held, farming)) {
 			case LOCKED -> notice(text());
 			case UNLOCKED -> notice("Mouse unlocked");
 			case NOT_HERE -> {
@@ -141,9 +164,12 @@ public class MouseLockFeature extends AddonPanel {
 
 	/** Reads the game's message about a teleport. */
 	public void onMessage(Component message) {
+		boolean automatic = lock.automatic();
 		if (lock.onChat(SkyBlockArea.plainLine(message.getString()).strip(), unlockOnTeleport.get())) {
 			CameraTurn.reset();
-			notice("Mouse unlocked");
+			if (!automatic) {
+				notice("Mouse unlocked");
+			}
 		}
 	}
 
@@ -163,7 +189,7 @@ public class MouseLockFeature extends AddonPanel {
 
 	@Override
 	public boolean shown(Minecraft client) {
-		return lock.on() || amount.value() > SHOWN || simulated();
+		return lock.on() && lockMark.get() || amount.value() > SHOWN || simulated();
 	}
 
 	@Override
@@ -182,12 +208,12 @@ public class MouseLockFeature extends AddonPanel {
 		float seconds = lastFrame == 0 ? 0f : Math.min(0.1f, (now - lastFrame) / 1_000_000_000f);
 		lastFrame = now;
 		// it comes and goes softly; in the HUD editor it stands there to be placed
-		float shown = amount.follow(lock.on() || simulated() || HudEditor.isOpen() ? 1f : 0f, seconds);
+		float shown = amount.follow(lock.on() && lockMark.get() || simulated() || HudEditor.isOpen() ? 1f : 0f, seconds);
 		float before = Draw.alpha();
 		Draw.setAlpha(before * shown);
 		try {
 			int width = panelWidth();
-			drawGlass(ui, width, HEIGHT, Radius.pill(HEIGHT));
+			drawGlass(ui, width, HEIGHT, Radius.box(HEIGHT));
 			String text = text();
 			float textWidth = ui.boldWidthScaled(text, TextScale.SMALL);
 			float x = (width - ICON - ICON_GAP - textWidth) / 2f;

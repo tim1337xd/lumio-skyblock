@@ -1,12 +1,14 @@
 package dev.tim1337.lumio.skyblock.profit;
 
+import dev.tim1337.lumio.api.experimental.debug.DebugHooks;
+import dev.tim1337.lumio.skyblock.SkyBlockDebug;
+import dev.tim1337.lumio.api.setting.Slider;
 import dev.tim1337.lumio.api.LumioApi;
 import dev.tim1337.lumio.api.draw.Canvas;
 import dev.tim1337.lumio.api.experimental.draw.Draw;
 import dev.tim1337.lumio.api.experimental.draw.HudTheme;
 import dev.tim1337.lumio.api.experimental.hud.HudEditor;
 import dev.tim1337.lumio.api.feature.AddonPanel;
-import dev.tim1337.lumio.api.feature.SettingGroup;
 import dev.tim1337.lumio.api.setting.Action;
 import dev.tim1337.lumio.api.setting.Choice;
 import dev.tim1337.lumio.api.setting.Toggle;
@@ -18,11 +20,15 @@ import dev.tim1337.lumio.api.experimental.draw.SlideText;
 import dev.tim1337.lumio.api.experimental.draw.SystemColors;
 import dev.tim1337.lumio.api.experimental.motion.Spring;
 import dev.tim1337.lumio.api.experimental.ui.UiSounds;
+import dev.tim1337.lumio.skyblock.chat.AfterBlock;
+import dev.tim1337.lumio.skyblock.data.CountedGains;
 import dev.tim1337.lumio.skyblock.data.FishingRods;
 import dev.tim1337.lumio.skyblock.data.ItemGains;
 import dev.tim1337.lumio.skyblock.data.Mayor;
 import dev.tim1337.lumio.skyblock.data.ProfitActivity;
 import dev.tim1337.lumio.skyblock.data.ProfitHistory;
+import dev.tim1337.lumio.skyblock.data.ProfitData;
+import dev.tim1337.lumio.skyblock.data.ProfitStore;
 import dev.tim1337.lumio.skyblock.data.ProfitTracker;
 import dev.tim1337.lumio.skyblock.data.SkyBlock;
 import dev.tim1337.lumio.skyblock.data.SkyBlockArea;
@@ -52,6 +58,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -114,6 +121,8 @@ public class ProfitHudFeature extends AddonPanel {
 
 	/** For the slayer tracker: a separate tracker per slayer, and the slayer currently (or last) being done. */
 	private final Map<Slayer, ProfitTracker> slayers = new EnumMap<>(Slayer.class);
+	/** What each tracker of this panel counted lately, so a gain taken back leaves only the tracker that counted it (weak: loading replaces them). */
+	private final Map<ProfitTracker, CountedGains> countedLately = new WeakHashMap<>();
 	private Slayer slayer;
 
 	/** @return the tracker currently receiving and displaying gains: the active slayer's for the slayer tracker, otherwise the activity's */
@@ -126,6 +135,8 @@ public class ProfitHudFeature extends AddonPanel {
 
 	/** Idle time after which the tracker pauses and its timer stops. */
 	private static final long PAUSE_AFTER = 60_000L;
+	/** An announced drop belongs to the activity done within this long: a loot share while assisting, an RNG meter drop of a hatched cocoon. */
+	private static final long DROP_BELONGS_MILLIS = 120_000L;
 	/** Duration of an ongoing break, which counts once the activity resumes, but not if it turns into a pause. */
 	private long idleMillis;
 
@@ -195,6 +206,20 @@ public class ProfitHudFeature extends AddonPanel {
 	private final Toggle showPerHour = add(make().toggle("show_per_hour", Component.literal("Per hour"), true), "General",
 		"Time away does not count");
 	private final Toggle showCounts = add(make().toggle("show_counts", Component.literal("Item counts"), true), "General");
+	/** How long the corpse panel shows after entering a mineshaft and after a corpse was opened (corpses only); hidden the rest of the time. */
+	private final Slider showFor = add(make().slider("show_for", Component.literal("Duration"), 15f, 5f, 60f, 0).unit(" s"), "General",
+		"On entering and after each corpse");
+	/** When the corpse panel shows (in a mineshaft only), and when the newest corpse was opened (its total pulses once). */
+	private final CorpsePanelShown corpsePanel = new CorpsePanelShown();
+	private long newestCorpseAt;
+	/** How long the newest corpse's total pulses. */
+	private static final long PULSE_MILLIS = 700L;
+	private static final float PULSE_GROWTH = 0.08f;
+	/** A line in chat after every corpse's loot list with what it brought in (corpses only). */
+	/** Shards (charmed, caught, a loot share of them) go into the Hunting Box, never the inventory: counted from the server's line. */
+	private final Toggle countShards = add(make().toggle("count_shards", Component.literal("Count shards"), true), "General");
+	private final Toggle chatProfit = add(make().toggle("chat_profit", Component.literal("Corpse profit in chat"), true), "General",
+		"A chat line per corpse; hover for detail");
 	/**
 	 * After how long without progress the tracker counts as inactive: its timer pauses and its stats turn into a quiet warning (for slayer, when
 	 * the quest is active but no quest mob was killed for that long, like SkyHanni). There is no sound.
@@ -254,14 +279,27 @@ public class ProfitHudFeature extends AddonPanel {
 		offerNoBackground();
 		offerModes(look);
 		offerHeader();
+		// the Full look has its ring and legend instead of these
+		topDropsRow.visibleWhen(() -> !breakdown());
+		showChart.visibleWhen(() -> !breakdown());
+		showPerHour.visibleWhen(() -> !breakdown());
+		showCounts.visibleWhen(() -> !breakdown());
+		chatProfit.visibleWhen(() -> activity == ProfitActivity.CORPSES);
+		countShards.visibleWhen(() -> activity != ProfitActivity.CORPSES && activity != ProfitActivity.EXPERIMENTS && activity != ProfitActivity.DRAGONS);
+		showFor.visibleWhen(() -> activity == ProfitActivity.CORPSES);
 		if (activity == ProfitActivity.CORPSES) {
 			// no time-based numbers for corpses: their line is the count and the value per corpse, always shown
 			showPerHour.visibleWhen(() -> false);
 			// corpse loot comes from the loot list in chat, with the key it consumed; nothing entering the inventory is attributed to it
 			ItemGains.listenCorpses(this::corpseLooted);
+			ItemGains.listenCorpses(this::corpseInChat);
 		} else if (activity != ProfitActivity.EXPERIMENTS && activity != ProfitActivity.DRAGONS) {
 			// the table's rewards are read from its menu, and what a dragon drops goes through its tracker, which knows the fight
 			ItemGains.listen(this::gained);
+			// rare drops, RNG meter drops and loot shares, also when the kill was not the player's: once, from their line and their item
+			ItemGains.listenDrops(this::dropped);
+			ItemGains.listenShards(this::shards);
+			ItemGains.listenTaken((item, shown, amount, inSacks) -> takenBack(item, amount));
 		}
 		if (activity == ProfitActivity.SLAYER) {
 			AttackEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
@@ -320,12 +358,13 @@ public class ProfitHudFeature extends AddonPanel {
 
 	private void reset(ProfitTracker.Range which) {
 		current().reset(which);
+		ProfitData.changed();
 		LumioApi.saveSoon();
 	}
 
-	/** Fishing works only on the islands made for it: elsewhere the tracker is hidden and counts nothing, and keeps its session. */
+	/** Every activity is told from what the player does (fishing from the cast itself), never from a list of islands, which left every new island out. */
 	private boolean allowedHere() {
-		return SkyBlock.allowed() && (activity != ProfitActivity.FISHING || FishingRods.onFishingIsland());
+		return SkyBlock.allowed();
 	}
 
 	/** An item was gained: it belongs to this activity if it is active, or was a moment ago (drops arrive after the blow). */
@@ -336,19 +375,45 @@ public class ProfitHudFeature extends AddonPanel {
 		if (!isEnabled() || !allowedHere() || !activity.within(sacks ? 45_000 : 8000) || ProfitActivity.latest() != activity) {
 			return;
 		}
+		ProfitTracker into = current();
+		into.add(id, name, count);
+		countedLately.computeIfAbsent(into, key -> new CountedGains()).counted(id, count, System.currentTimeMillis());
+	}
+
+	/**
+	 * A gain counted before turned out to be none (crafted, compacted, moved, deleted): it leaves each tracker of this panel only as far as that
+	 * tracker counted it, never one that did not, also when the activity or the slayer changed since.
+	 */
+	private void takenBack(String id, long count) {
+		long now = System.currentTimeMillis();
+		for (Map.Entry<ProfitTracker, CountedGains> entry : countedLately.entrySet()) {
+			long counted = entry.getValue().takeBack(id, count, now);
+			if (counted > 0) {
+				entry.getKey().remove(id, counted);
+			}
+		}
+	}
+
+	/**
+	 * A drop the server announced (a rare drop, an RNG meter drop, a loot share): it belongs to the activity the player is in, also when the kill was
+	 * not theirs or no blow of theirs came just before it, so it is not held to the few seconds after the last blow that items landing need.
+	 */
+	private void dropped(String id, String name, long count, boolean fromChat) {
+		if (!isEnabled() || !allowedHere() || !activity.within(DROP_BELONGS_MILLIS) || ProfitActivity.latest() != activity) {
+			return;
+		}
+		current().addDrop(id, name, count, fromChat);
+	}
+
+	/** Shards the player got belong to the activity the player is in, like announced drops; a normal entry, priced like any item. */
+	private void shards(String id, String name, long count, boolean fromChat) {
+		if (!countShards.get() || !isEnabled() || !allowedHere() || !activity.within(DROP_BELONGS_MILLIS) || ProfitActivity.latest() != activity) {
+			return;
+		}
 		current().add(id, name, count);
 	}
 
 	/** @return the key a corpse type consumes; Lapis corpses need none */
-	private static String corpseKey(String kind) {
-		return switch (kind) {
-			case "TUNGSTEN" -> "TUNGSTEN_KEY";
-			case "UMBER" -> "UMBER_KEY";
-			case "VANGUARD" -> "SKELETON_KEY";
-			default -> null;
-		};
-	}
-
 	/**
 	 * A corpse was opened, counted like SkyHanni's corpse tracker: its loot (powder is not an item and is excluded), one more corpse, and the
 	 * consumed key as a cost, unless the Resourceful perk saved it.
@@ -359,16 +424,39 @@ public class ProfitHudFeature extends AddonPanel {
 		}
 		ProfitTracker into = current();
 		for (ItemGains.Drop drop : corpse.drops()) {
-			if (!drop.name().endsWith("Powder")) {
+			if (!CorpseProfit.powder(drop.name())) {
 				into.add(drop.id(), drop.name(), drop.count());
 			}
 		}
 		into.addEvent();
-		String key = corpseKey(corpse.kind());
+		// the panel shows for a while with the new numbers; another corpse in that time starts it again
+		long now = System.currentTimeMillis();
+		corpsePanel.corpse(now, Math.round(showFor.get() * 1000f));
+		newestCorpseAt = now;
+		String key = CorpseProfit.keyOf(corpse.kind());
 		if (key != null && corpse.keyUsed()) {
 			into.addCost(SkyBlockPrices.price(key, mode()));
 		}
 		LumioApi.saveSoon();
+	}
+
+	/**
+	 * Says in chat what a corpse brought in, right after its loot list, valued as this panel values it. A list that could not be read completely says
+	 * nothing (a wrong number would be worse) and is written to the debug log.
+	 */
+	private void corpseInChat(ItemGains.Corpse corpse) {
+		if (!chatProfit.get() || !allowedHere()) {
+			return;
+		}
+		CorpseProfit.Result result = CorpseProfit.of(corpse, mode(), CorpseProfit.live());
+		if (result == null) {
+			if (DebugHooks.ACTIVE) {
+				DebugHooks.log(SkyBlockDebug.PROFIT, "Corpse profit: the loot list of a {} corpse could not be read completely, nothing said", corpse.kind());
+			}
+			return;
+		}
+		// after the loot list's closing bar, which the game adds to the chat only after this
+		AfterBlock.line(CorpseProfit.chatLine(result));
 	}
 
 	/**
@@ -480,6 +568,7 @@ public class ProfitHudFeature extends AddonPanel {
 		if (changesNow != savedChanges && now - lastSaveAsk > 15_000L) {
 			savedChanges = changesNow;
 			lastSaveAsk = now;
+			ProfitData.changed();
 			LumioApi.saveSoon();
 		}
 	}
@@ -487,8 +576,9 @@ public class ProfitHudFeature extends AddonPanel {
 	// ------------------------------------------------------------------------------------------------ display
 
 	private boolean wanted() {
-		// while changing worlds (entering a mineshaft, warping) the location is briefly unknown: keep the previous visibility
-		if (ProfitActivity.changingWorld()) {
+		// while changing worlds (entering a mineshaft, warping) the location is briefly unknown: keep the previous visibility (the corpse panel
+		// hides at once instead, as it belongs to the mineshaft just left)
+		if (ProfitActivity.changingWorld() && activity != ProfitActivity.CORPSES) {
 			return wasWanted;
 		}
 		return wasWanted = wantedNow();
@@ -508,6 +598,13 @@ public class ProfitHudFeature extends AddonPanel {
 		if (activity == ProfitActivity.EXPERIMENTS) {
 			// the table's panel only while a table menu or the rewards are open, or near the table for a while after: walking off or waiting hides it
 			return activity.engaged() && (activity.now() || activity.within(EXPERIMENTS_LINGER_MILLIS) && dev.tim1337.lumio.skyblock.experiments.ExperimentProfit.nearTable(net.minecraft.client.Minecraft.getInstance()));
+		}
+		if (activity == ProfitActivity.CORPSES) {
+			// only in a Glacite Mineshaft, for a while after entering it and after each corpse, never sitting there in between; while the world
+			// changes the place is unknown, so it is hidden at once; in the HUD editor while in the mines (elsewhere through Simulate or All panels)
+			long now = System.currentTimeMillis();
+			corpsePanel.at(!ProfitActivity.changingWorld() && SkyBlockArea.inMineshaft(), now, Math.round(showFor.get() * 1000f));
+			return HudEditor.isOpen() && SkyBlockArea.inMines() || corpsePanel.shown(now);
 		}
 		return activity.engaged();
 	}
@@ -655,6 +752,12 @@ public class ProfitHudFeature extends AddonPanel {
 		}
 		UiSounds.click();
 		LumioApi.saveSoon();
+		return true;
+	}
+
+	/** Used with the mouse while an inventory is open: it stays as it is behind menus. */
+	@Override
+	public boolean usedInMenus() {
 		return true;
 	}
 
@@ -1001,7 +1104,7 @@ public class ProfitHudFeature extends AddonPanel {
 		if (idle >= 0) {
 			meta = "Inactive " + ProfitTracker.time(idle);
 			metaColor = SystemColors.ORANGE;
-		} else if (!sampleShown && paused()) {
+		} else if (!sampleShown && paused() && activity != ProfitActivity.CORPSES) {
 			meta = "Paused";
 			metaColor = SystemColors.ORANGE;
 		} else if (activity == ProfitActivity.CORPSES) {
@@ -1031,7 +1134,7 @@ public class ProfitHudFeature extends AddonPanel {
 			heroText = (whole >= 0 ? "+" : "") + PanelKit.grouped(whole);
 		}
 		float room = cardWidth() - 2f * PanelKit.PAD;
-		float scale = Math.min(PanelKit.HERO, room / Math.max(1f, ui.boldWidthScaled(heroText, 1f)));
+		float scale = Math.min(PanelKit.HERO, room / Math.max(1f, ui.boldWidthScaled(heroText, 1f))) * (1f + PULSE_GROWTH * corpsePulse());
 		boolean inactive = shownTracker != sample && inactiveFor() >= 0;
 		float before = Draw.alpha();
 		if (inactive) {
@@ -1039,6 +1142,15 @@ public class ProfitHudFeature extends AddonPanel {
 		}
 		PanelKit.hero(ui, heroText, PanelKit.PAD, y + HERO_ROW - 8f * scale, scale, value < 0 ? PanelKit.RED_TEXT : PanelKit.GOLD, value > 0);
 		Draw.setAlpha(before);
+	}
+
+	/** @return how much the newest corpse's total pulses now: 1 right after it was opened, going to 0 */
+	private float corpsePulse() {
+		if (activity != ProfitActivity.CORPSES || newestCorpseAt == 0L) {
+			return 0f;
+		}
+		float age = (System.currentTimeMillis() - newestCorpseAt) / (float) PULSE_MILLIS;
+		return age >= 1f ? 0f : Mth.sin(age * Mth.PI);
 	}
 
 	/** The hero dims while the tracker is inactive. */
@@ -1187,7 +1299,7 @@ public class ProfitHudFeature extends AddonPanel {
 		for (ProfitTracker.Entry entry : listed) {
 			Spring[] springs = rows.get(entry.id);
 			ItemStack icon = ItemGains.iconOf(entry.id);
-			drawDrop(ui, y, rarityColor(entry.id, icon, sliceColor(index)), icon, SkyBlockPrices.clean(entry.name), entry.count,
+			drawDrop(ui, y, rarityColor(entry.id, icon, sliceColor(index)), icon, entry.label(), entry.count,
 				springs == null ? (float) entry.value(mode()) : springs[1].value(), springs == null ? 1f : springs[2].value());
 			y += line(DROP_ROW);
 			index++;
@@ -1237,10 +1349,10 @@ public class ProfitHudFeature extends AddonPanel {
 		boolean overRange = mousePanelX > -999f && hovered(rangeLabel, y - 2f, y + SECTION_ROW);
 		boolean overMode = mousePanelX > -999f && hovered(modeLabel, y - 2f, y + SECTION_ROW);
 		if (overRange) {
-			ui.roundedSmooth(rangeLabel[0] - 3f, y - 1.5f, rangeWidth + 6f, 10f, Radius.pill(10f), Draw.withOpacity(accentArgb(), 0.35f));
+			ui.roundedSmooth(rangeLabel[0] - 3f, y - 1.5f, rangeWidth + 6f, 10f, Radius.box(10f), Draw.withOpacity(accentArgb(), 0.35f));
 		}
 		if (overMode) {
-			ui.roundedSmooth(modeLabel[0] - 3f, y - 1.5f, modeWidth + 6f, 10f, Radius.pill(10f), Draw.withOpacity(accentArgb(), 0.35f));
+			ui.roundedSmooth(modeLabel[0] - 3f, y - 1.5f, modeWidth + 6f, 10f, Radius.box(10f), Draw.withOpacity(accentArgb(), 0.35f));
 		}
 		ui.textAtScaled(modeText, modeX, y + 0.5f, PanelKit.SMALL, overMode ? text : secondary);
 		ui.textAtScaled("·", rangeX - 5f, y + 0.5f, PanelKit.SMALL, secondary);
@@ -1340,7 +1452,10 @@ public class ProfitHudFeature extends AddonPanel {
 		float textRoom = cardWidth() - PanelKit.PAD - textX;
 		String totalText = ProfitText.total(total.value());
 		float totalSize = Math.min(TOTAL_SIZE, textRoom / Math.max(1f, ui.boldWidthScaled(totalText, 1f)));
-		ui.textAtScaledBold(totalText, textX, centerY - TOTAL_ABOVE_MIDDLE, totalSize, PanelKit.readable(PanelKit.GOLD));
+		// a loss in red; the newest corpse's total pulses once, gently
+		float pulse = corpsePulse();
+		ui.textAtScaledBold(totalText, textX, centerY - TOTAL_ABOVE_MIDDLE, totalSize * (1f + PULSE_GROWTH * pulse),
+			PanelKit.readable(total.value() < 0 ? PanelKit.RED_TEXT : PanelKit.GOLD));
 		boolean corpses = activity == ProfitActivity.CORPSES;
 		ProfitTracker.Bucket shownBucket = shownTracker.bucket(shownRange());
 		String rate = corpses ? PanelKit.compact(perCorpseValue(shownBucket)) : PanelKit.compact(framePerHour);
@@ -1575,14 +1690,78 @@ public class ProfitHudFeature extends AddonPanel {
 
 	// ------------------------------------------------------------------------------------------------ persistence
 
-	@Override
-	public JsonObject save() {
-		JsonObject json = super.save();
+	/** @return what this tracker counted, as the profit store keeps it: its own, and for the slayer tracker one per slayer */
+	private JsonObject counted() {
+		JsonObject json = new JsonObject();
 		json.add("profit", tracker.toJson());
 		if (!slayers.isEmpty()) {
 			JsonObject each = new JsonObject();
 			slayers.forEach((kind, profit) -> each.add(kind.name(), profit.toJson()));
 			json.add("slayers", each);
+		}
+		return json;
+	}
+
+	/** Takes counted values: in place of its own (null for none), or added to them. */
+	private void countedFrom(JsonObject json, boolean added) {
+		JsonObject profit = json != null && json.get("profit") instanceof JsonObject found ? found : null;
+		if (added) {
+			tracker.addSaved(profit);
+		} else {
+			tracker.replaceSaved(profit);
+			slayers.clear();
+		}
+		if (json != null && json.get("slayers") instanceof JsonObject each) {
+			for (var entry : each.entrySet()) {
+				try {
+					ProfitTracker of = slayers.computeIfAbsent(Slayer.valueOf(entry.getKey()), key -> new ProfitTracker());
+					if (added) {
+						of.addSaved(entry.getValue().getAsJsonObject());
+					} else {
+						of.replaceSaved(entry.getValue().getAsJsonObject());
+					}
+				} catch (RuntimeException ignored) {
+					// a slayer this version does not know, or a broken entry: left out
+				}
+			}
+		}
+		savedChanges = -1;
+	}
+
+	/** This tracker's values in the profit store. */
+	private final ProfitStore.Part stored = new ProfitStore.Part() {
+		@Override
+		public JsonObject save() {
+			return counted();
+		}
+
+		@Override
+		public void load(JsonObject json) {
+			countedFrom(json, false);
+		}
+
+		@Override
+		public void merge(JsonObject json) {
+			countedFrom(json, true);
+		}
+	};
+
+	/** @return this tracker's values for the profit store, registered when the add-on starts */
+	public ProfitStore.Part stored() {
+		return stored;
+	}
+
+	@Override
+	public JsonObject save() {
+		JsonObject json = super.save();
+		// What was counted lives in the profit store, a file per profile apart from the settings. Only until the store has taken it over (the
+		// profile must be known for that) it stays here too, so an old settings file never loses it on the way.
+		if (!ProfitData.store().settled() && !ProfitData.store().legacyTaken()) {
+			JsonObject counted = counted();
+			json.add("profit", counted.get("profit"));
+			if (counted.has("slayers")) {
+				json.add("slayers", counted.get("slayers"));
+			}
 		}
 		if (slayer != null) {
 			json.addProperty("slayer", slayer.name());
@@ -1596,19 +1775,9 @@ public class ProfitHudFeature extends AddonPanel {
 	@Override
 	public void load(JsonObject json) {
 		super.load(json);
-		if (json.has("profit") && json.get("profit").isJsonObject()) {
-			tracker.fromJson(json.getAsJsonObject("profit"));
-			savedChanges = tracker.changes();
-		}
-		if (json.has("slayers") && json.get("slayers").isJsonObject()) {
-			for (var entry : json.getAsJsonObject("slayers").entrySet()) {
-				try {
-					ProfitTracker profit = new ProfitTracker();
-					profit.fromJson(entry.getValue().getAsJsonObject());
-					slayers.put(Slayer.valueOf(entry.getKey()), profit);
-				} catch (RuntimeException ignored) {
-				}
-			}
+		// values of a settings file from before the profit store: taken once, then the store has them (and never twice)
+		if (json.has("profit") && !ProfitData.store().legacyTaken() && !ProfitData.store().settled()) {
+			countedFrom(json, false);
 		}
 		if (json.has("gummy_until")) {
 			gummy.setActiveUntil(json.get("gummy_until").getAsLong());

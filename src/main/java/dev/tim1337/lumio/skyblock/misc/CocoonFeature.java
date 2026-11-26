@@ -16,13 +16,13 @@ import dev.tim1337.lumio.api.setting.Choice;
 import dev.tim1337.lumio.api.setting.MultiToggle;
 import dev.tim1337.lumio.api.setting.Slider;
 import dev.tim1337.lumio.api.setting.Toggle;
+import dev.tim1337.lumio.api.experimental.draw.WorldLabel;
 import dev.tim1337.lumio.skyblock.SkyBlockFeatures;
 import dev.tim1337.lumio.skyblock.data.EquipmentTracker;
 import dev.tim1337.lumio.skyblock.data.SkullTextures;
 import dev.tim1337.lumio.skyblock.slayer.SlayerBosses;
 import dev.tim1337.lumio.skyblock.data.SkyBlock;
 import dev.tim1337.lumio.skyblock.data.SkyBlockArea;
-import dev.tim1337.lumio.skyblock.world.WorldLabel;
 import static dev.tim1337.lumio.skyblock.SkyBlockAddon.make;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents;
@@ -137,7 +137,7 @@ public class CocoonFeature extends AddonFeature implements StyledFeature {
 	private final AddonSetting<Void> previewRow = add(HudTheme.preview("preview", Component.literal("Preview"), PREVIEW_HEIGHT, this::drawPreview), "Look");
 	private int shownBefore = CocoonLook.NAME | CocoonLook.TIME | CocoonLook.BAR;
 	private final Toggle onlyWhenICan = add(make().toggle("only_when_i_can", Component.literal("Only when I can cocoon"), false), "Shows",
-		"While you wear The Primordial or a belt with the Blood Shot reforge");
+		"With The Primordial or Blood Shot");
 	private final Cocoons rules = new Cocoons();
 	private final Map<Integer, ArmorStand> looking = new HashMap<>();
 	private final Map<Integer, Integer> lookingSince = new HashMap<>();
@@ -155,10 +155,13 @@ public class CocoonFeature extends AddonFeature implements StyledFeature {
 	private int tick;
 
 	public CocoonFeature() {
-		super("cocoons", "Cocoons", "A small label at a cocoon, with the cocooned mob's name and a bar that runs down until it hatches, while you can see it. It is an estimate: a cocoon can hatch a little earlier or later.", true);
+		super("cocoons", "Cocoons", "About when each cocoon hatches.", true);
+		pageGroup("Helpers");
 		iconRgb(SystemColors.PURPLE_RGB);
 		iconName("bug");
 		summary("How long until a cocoon hatches");
+		// the minimal style has no panel and draws in fixed colors
+		theme.visibleWhen(() -> style.get() != CocoonLook.Style.MINIMAL);
 	}
 
 	@Override

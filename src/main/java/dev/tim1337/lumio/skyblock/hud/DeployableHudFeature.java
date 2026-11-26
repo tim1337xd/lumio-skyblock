@@ -5,7 +5,6 @@ import dev.tim1337.lumio.api.experimental.draw.Draw;
 import dev.tim1337.lumio.api.experimental.draw.HudTheme;
 import dev.tim1337.lumio.api.experimental.hud.HudEditor;
 import dev.tim1337.lumio.api.feature.AddonPanel;
-import dev.tim1337.lumio.api.feature.SettingGroup;
 import dev.tim1337.lumio.api.setting.Choice;
 import dev.tim1337.lumio.api.setting.Toggle;
 
@@ -116,7 +115,7 @@ public class DeployableHudFeature extends AddonPanel {
 	private final Toggle showName = add(make().toggle("show_name", Component.literal("Name"), true), "General");
 	private final Toggle onlyMine = add(make().toggle("only_mine", Component.literal("Only my own"), true), "General");
 	private final Toggle wispRange = add(make().toggle("wisp_range", Component.literal("Out of range alert"), true), "Will-o'-wisp",
-		"Not in a Mineshaft, where its range has no end");
+		"Not in a Mineshaft (no range there)");
 	private final Toggle wispOut = add(make().toggle("wisp_out", Component.literal("Expired alert"), true), "Will-o'-wisp");
 	private final Toggle wispSound = add(make().toggle("wisp_sound", Component.literal("Alert sound"), true), "Will-o'-wisp");
 
@@ -195,15 +194,18 @@ public class DeployableHudFeature extends AddonPanel {
 	private long lastScan;
 
 	public DeployableHudFeature() {
-		super("deployables", "Deployables", "The power orbs, flares, Umberella, lanterns and Black Hole you are in range of, with the time they have left.", true,
+		super("deployables", "Deployables", "Orbs, flares and more in range, with time left.", true,
 			Anchor.LEFT, false, 12f, 170f);
+		pageGroup("On screen");
 		iconRgb(SystemColors.PURPLE_RGB);
 		iconName("orb");
-		summary("Power orbs and flares in range, and their time left");
+		summary("Orbs and flares in range, time left");
 		offerNoBackground();
 		offerCardSize();
 		offerModes(look);
 		offerHeader();
+		showName.visibleWhen(() -> !simple());
+		wispSound.visibleWhen(() -> wispRange.get() || wispOut.get());
 	}
 
 	@Override

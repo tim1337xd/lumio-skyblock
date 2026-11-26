@@ -5,23 +5,19 @@ import dev.tim1337.lumio.api.experimental.draw.Draw;
 import dev.tim1337.lumio.api.experimental.draw.HudTheme;
 import dev.tim1337.lumio.api.experimental.draw.PanelKit;
 import dev.tim1337.lumio.api.experimental.draw.Radius;
-import dev.tim1337.lumio.api.experimental.draw.SystemColors;
 import dev.tim1337.lumio.api.experimental.draw.TextScale;
 import dev.tim1337.lumio.api.experimental.motion.Spring;
 import dev.tim1337.lumio.skyblock.data.ItemHoldings;
 import dev.tim1337.lumio.skyblock.data.ItemRepo;
 import dev.tim1337.lumio.skyblock.data.ItemTypes;
-import dev.tim1337.lumio.skyblock.data.PriceHistory;
 import dev.tim1337.lumio.skyblock.data.SkyBlockPrices;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.util.Mth;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -31,78 +27,70 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * An item's own window, centered where the inventory is, with the item list staying on the right; the inventory's slots are away while it is open. From the top: the item with its name, rarity and type, back, pin and close; the price with a
- * quiet line of other values and the trend; how many the player has and where, with Find; then tabs for what is known of it: its recipe, the forge, shops, trades, Kat, what it is used in and who drops it. A mob has its drops, an NPC what it
- * sells. Arrows go through several recipes and long lists. An item clicked in the window opens in the same window; Back, Esc and Backspace go back step by step to the inventory. A tab without data is left out.
+ * An item's own window: next to what was clicked, docked as a panel of its own, or (without room for either) in the inventory's place, whose slots
+ * are then away. At the top the item with its name in its rarity color, its rarity and type, back, pin and close, and one number below: the lowest
+ * BIN (or the Bazaar's buy price). Then tabs: Recipe and the other ways to make it (forge, shops, trades, Kat), Market, Drops (who drops it) and
+ * what it is used in; a mob has its drops, an NPC what it sells. It opens on Recipe when there is one, else on its first tab. At the bottom the
+ * action bar: Quick craft, the market and Wiki.
  * <p>
- * Everything shown is worked out when the item opens and again once a second (what the player has changes as they move items), never per frame. Quick craft only opens SkyBlock's own crafting menu for the item, one command per click; it never
- * moves, crafts or clicks anything itself.
+ * An entry clicked in the window opens in the same window, at the same place; Back, Esc and Backspace go back step by step to the inventory. A tab
+ * without data is left out. Everything shown is worked out when the item opens and again once a second, never per frame. Quick craft only opens
+ * SkyBlock's own crafting menu for the item, one command per click; it never moves, crafts or clicks anything itself.
  */
 final class ItemDetailView {
 	private static final int PAD = 10;
-	private static final int SECTION_GAP = 7;
 	private static final int HEADER = 22;
 	private static final int ICON_TILE = 22;
 	private static final int BUTTON = 13;
-	private static final int PRICE_HEIGHT = 28;
-	/** The line of the price over time, beside the price: its size, the step it is drawn in and how it looks, in GUI pixels. */
-	private static final float PRICE_LINE_WIDTH = 56f;
-	private static final float PRICE_LINE_HEIGHT = 14f;
-	private static final float PRICE_LINE_GAP = 6f;
-	private static final float PRICE_LINE_STEP = 1f;
-	private static final float PRICE_LINE_THICKNESS = 1f;
-	private static final float PRICE_LINE_FILL = 0.12f;
-	private static final int HAVE_HEIGHT = 11;
-	private static final int CELL = 18;
-	private static final int CELL_GAP = 2;
-	private static final int NEED_ROW = 11;
-	private static final int CRAFT_BUTTON = 16;
-	private static final int CRAFT_ICON = 7;
-	private static final int CRAFT_ICON_GAP = 4;
-	private static final int TILE = 18;
-	private static final int TILE_GAP = 4;
-	private static final int ROW = 17;
-	private static final int TABS = 14;
-	private static final int TAB_GAP = 9;
-	private static final int TAB_UNDERLINE = 8;
-	private static final int NOTE_ROW = 10;
+	private static final int BUTTON_ICON = 7;
+	private static final int TOP_GAP = 6;
+	private static final int PRICE_ROW = 13;
+	private static final int TABS = 15;
+	private static final int TAB_GAP = 10;
+	private static final int TAB_PAD = 2;
+	private static final float TAB_LINE = 1.5f;
+	private static final int BODY_GAP = 7;
 	private static final int ARROW = 10;
-	private static final int LEAST_HEIGHT_FOR_PRICE = 190;
+	private static final float TEXT_HALF = 3.5f;
+	private static final float BODY_HALF = 4f;
 	private static final float RADIUS = 10f;
 	private static final float OPEN_SECONDS = 0.15f;
 	private static final long REFRESH_MILLIS = 1000L;
 	private static final int MOST_BACK = 30;
 	private static final int COVER = 0xFF12131A;
 	private static final float COVER_OPACITY = 0.94f;
-	private static final int GOOD = SystemColors.GREEN;
-	private static final int BAD = SystemColors.RED;
-	private static final int GOLD = 0xFFFFC94A;
-	private static final String COIN = "SKYBLOCK_COIN";
+	private static final float ICON_GLOW = 0.4f;
+	private static final float ICON_FILL = 0.12f;
+	private static final float LABEL_OPACITY = 0.85f;
+	private static final float EDGE_OPACITY = 0.1f;
+	private static final float BUTTON_FILL = 0.08f;
+	private static final float BUTTON_HOVER = 0.16f;
 	private static final String NOTHING = "Nothing is known of how to get this";
-
-	/** An ingredient of the shown recipe: what, how many the recipe needs, and how many the player has. */
-	private record Need(String id, String name, int color, long need, long have) {
-		boolean enough() {
-			return have >= need;
-		}
-	}
+	/** A name in two rows starts this far above the header's top, and its rows are this far apart. */
+	private static final float TITLE_TWO_ROWS_TOP = -2f;
+	private static final float TITLE_ROW = 8.5f;
+	/** A name that does not fit is first set this much smaller. */
+	static final float TITLE_SHRINK = 0.85f;
 
 	/** What Back returns to. */
 	private record View(String id, ItemTabs.Kind tab) {
 	}
 
-	/** One row of a list: its icon, words on the left and the right, and what a click opens, or null. */
-	private record Row(String icon, String text, String right, String target) {
+	/** A window title as it is set: one row, or two, and how large (a share of the usual size). */
+	record Title(String first, String second, float scale) {
 	}
 
 	private final ItemListFeature feature;
 	private final Deque<View> back = new ArrayDeque<>();
 	private final Spring opening = Spring.smooth(OPEN_SECONDS);
-	private final List<int[]> hitBoxes = new ArrayList<>();
-	private final List<String> hitIds = new ArrayList<>();
+	private final ItemWindowHits hits = new ItemWindowHits();
+	private final ItemWindowMarket market = new ItemWindowMarket();
+	private final ItemWindowActions actions = new ItemWindowActions();
 	private final List<int[]> tabBoxes = new ArrayList<>();
 	private String id;
 	private ItemTabs.Kind wantedTab;
+	/** Whether the item was just opened: it then opens on its first tab (Recipe when it has one). */
+	private boolean fresh;
 	/** The open tab, and how far along its recipes or its list. */
 	private int tab;
 	private int page;
@@ -116,28 +104,19 @@ final class ItemDetailView {
 	private ItemTypes.Info info;
 	private boolean source;
 	private List<ItemTabs.Tab> tabs = List.of();
-	private final List<Need> needs = new ArrayList<>();
+	private final List<ItemWindowBodies.Need> needs = new ArrayList<>();
 	private final List<String> usedIn = new ArrayList<>();
-	private final List<Row> rows = new ArrayList<>();
+	private final List<ItemWindowBodies.Row> rows = new ArrayList<>();
 	private String rowsNote = "";
 	private int missingCount;
-	private String priceLabel = "";
-	private double priceValue;
-	private String priceExtra = "";
-	private String trend = "";
-	private double[] priceLine = new double[0];
-	private int trendColor;
-	private String places = "";
-	private int have;
+	private String wiki = "";
 	// last drawn boxes, for clicks
-	private int[] backButton = new int[4];
-	private int[] pinButton = new int[4];
-	private int[] closeButton = new int[4];
-	private int[] prevPage = new int[4];
-	private int[] nextPage = new int[4];
-	private int[] craftButton = new int[4];
-	private int[] findButton = new int[4];
-	private int[] sourceLink = new int[4];
+	private final int[] backButton = new int[4];
+	private final int[] pinButton = new int[4];
+	private final int[] closeButton = new int[4];
+	private final int[] prevPage = new int[4];
+	private final int[] nextPage = new int[4];
+	private final int[] sourceLink = new int[4];
 
 	ItemDetailView(ItemListFeature feature) {
 		this.feature = feature;
@@ -167,6 +146,7 @@ final class ItemDetailView {
 	private void show(String itemId, ItemTabs.Kind kind) {
 		id = itemId;
 		wantedTab = kind;
+		fresh = true;
 		tab = 0;
 		page = 0;
 		refreshedAt = 0L;
@@ -214,26 +194,33 @@ final class ItemDetailView {
 		entry = ItemRepo.get(id);
 		info = entry == null ? null : ItemTypes.of(entry);
 		source = ItemRepo.isSource(id);
+		wiki = WikiLink.of(entry == null ? ItemWindowBodies.nameOf(id) : entry.name, source);
 		readUsedIn();
-		tabs = ItemTabs.of(ItemRepo.recipesFor(id), usedIn.size(), ItemRepo.ofSource(id));
+		List<ItemRepo.Recipe> making = ItemRepo.recipesFor(id);
+		market.read(id, source ? 0 : craftCost(firstCrafting(making)));
+		tabs = ItemTabs.of(making, usedIn.size(), ItemRepo.ofSource(id), !source && market.hasContent());
+		if (fresh) {
+			tab = ItemTabs.opening(tabs);
+			fresh = false;
+		}
 		if (wantedTab != null) {
-			for (int i = 0; i < tabs.size(); i++) {
-				if (tabs.get(i).kind() == wantedTab) {
-					tab = i;
-				}
-			}
+			int wanted = ItemTabs.indexOf(tabs, wantedTab);
+			tab = wanted >= 0 ? wanted : tab;
 			wantedTab = null;
 		}
 		tab = tabs.isEmpty() ? 0 : Math.min(tab, tabs.size() - 1);
 		readRows();
-		readNeeds();
-		readPrice();
-		have = ItemHoldings.count(id);
-		StringBuilder where = new StringBuilder();
-		for (ItemHoldings.Place place : ItemHoldings.places(id)) {
-			where.append(where.isEmpty() ? "" : ", ").append(place.name()).append(' ').append(place.count());
+		ItemRepo.Recipe shown = shownRecipe();
+		readNeeds(shown != null ? shown : firstCrafting(making));
+	}
+
+	private static ItemRepo.Recipe firstCrafting(List<ItemRepo.Recipe> making) {
+		for (ItemRepo.Recipe recipe : making) {
+			if (recipe.crafting()) {
+				return recipe;
+			}
 		}
-		places = where.toString();
+		return null;
 	}
 
 	/** What it is used in: the results of its uses, each once. */
@@ -252,9 +239,11 @@ final class ItemDetailView {
 		return tab < tabs.size() ? tabs.get(tab).recipes() : List.of();
 	}
 
-	private boolean listTab() {
+	/** @return whether the open tab shows recipes (Recipe, Forge, Shop, Trades, Kat) */
+	private boolean recipeTab() {
 		ItemTabs.Kind kind = currentKind();
-		return kind == ItemTabs.Kind.DROPS || kind == ItemTabs.Kind.SELLS || kind == ItemTabs.Kind.DROPPED_BY;
+		return kind == ItemTabs.Kind.RECIPE || kind == ItemTabs.Kind.FORGE || kind == ItemTabs.Kind.SHOP || kind == ItemTabs.Kind.TRADE
+			|| kind == ItemTabs.Kind.KAT;
 	}
 
 	/** The rows of a tab that is a list. */
@@ -268,20 +257,20 @@ final class ItemDetailView {
 				rowsNote = rowsNote.isEmpty() ? recipe.note() : rowsNote;
 				for (ItemRepo.Stack drop : recipe.outputs()) {
 					if (seen.add(drop.id())) {
-						rows.add(new Row(drop.id(), nameOf(drop.id()) + times(drop.count()), drop.note(), drop.id()));
+						rows.add(new ItemWindowBodies.Row(drop.id(), ItemWindowBodies.nameOf(drop.id()) + times(drop.count()), drop.note(), drop.id()));
 					}
 				}
 			}
 		} else if (kind == ItemTabs.Kind.SELLS) {
 			for (ItemRepo.Recipe recipe : shownRecipes()) {
 				ItemRepo.Stack sold = recipe.outputs().getFirst();
-				rows.add(new Row(sold.id(), nameOf(sold.id()) + times(sold.count()), costOf(recipe), sold.id()));
+				rows.add(new ItemWindowBodies.Row(sold.id(), ItemWindowBodies.nameOf(sold.id()) + times(sold.count()), costOf(recipe), sold.id()));
 			}
 		} else if (kind == ItemTabs.Kind.DROPPED_BY) {
 			Set<String> seen = new LinkedHashSet<>();
 			for (ItemRepo.Recipe recipe : shownRecipes()) {
 				if (seen.add(recipe.sourceId().isEmpty() ? recipe.source() : recipe.sourceId())) {
-					rows.add(new Row(recipe.sourceId(), recipe.source(), chanceHere(recipe), recipe.sourceId()));
+					rows.add(new ItemWindowBodies.Row(recipe.sourceId(), recipe.source(), chanceHere(recipe), recipe.sourceId()));
 				}
 			}
 		}
@@ -300,7 +289,7 @@ final class ItemDetailView {
 		StringBuilder cost = new StringBuilder();
 		for (ItemRepo.Stack input : recipe.inputs()) {
 			cost.append(cost.isEmpty() ? "" : ", ");
-			cost.append(input.id().equals(COIN) ? coins(input.count()) + " coins" : nameOf(input.id()) + times(input.count()));
+			cost.append(input.id().equals(ItemWindowBodies.COIN) ? coins(input.count()) + " coins" : ItemWindowBodies.nameOf(input.id()) + times(input.count()));
 		}
 		return cost.toString();
 	}
@@ -309,39 +298,34 @@ final class ItemDetailView {
 		return count > 1 ? " ×" + PanelKit.count(Math.round(count)) : "";
 	}
 
-	private static String nameOf(String itemId) {
-		ItemRepo.Entry item = ItemRepo.get(itemId);
-		return item == null ? SkyBlockPrices.nameOf(itemId) : item.plainName();
-	}
-
-	/** @return the recipe the tab shows now, or null */
+	/** @return the recipe the open tab shows now, or null */
 	private ItemRepo.Recipe shownRecipe() {
 		List<ItemRepo.Recipe> recipes = shownRecipes();
-		if (recipes.isEmpty() || listTab()) {
+		if (recipes.isEmpty() || !recipeTab()) {
 			return null;
 		}
 		page = Math.floorMod(page, recipes.size());
 		return recipes.get(page);
 	}
 
-	/** The ingredients of the shown recipe, added up over its slots, with how many the player has. */
-	private void readNeeds() {
+	/** The ingredients of a recipe, added up over its slots, with how many the player has. */
+	private void readNeeds(ItemRepo.Recipe recipe) {
 		needs.clear();
 		missingCount = 0;
-		ItemRepo.Recipe shown = shownRecipe();
-		if (shown == null) {
+		if (recipe == null) {
 			return;
 		}
 		Map<String, Long> wanted = new LinkedHashMap<>();
-		for (ItemRepo.Stack stack : shown.inputs()) {
-			if (stack != null && !stack.id().equals(COIN)) {
+		for (ItemRepo.Stack stack : recipe.inputs()) {
+			if (stack != null && !stack.id().equals(ItemWindowBodies.COIN)) {
 				wanted.merge(stack.id(), Math.round(stack.count()), Long::sum);
 			}
 		}
 		for (Map.Entry<String, Long> want : wanted.entrySet()) {
 			ItemRepo.Entry ingredient = ItemRepo.get(want.getKey());
 			int color = ingredient == null ? HudTheme.text() : ingredient.rarityColor();
-			Need need = new Need(want.getKey(), nameOf(want.getKey()), color, want.getValue(), ItemHoldings.count(want.getKey()));
+			ItemWindowBodies.Need need = new ItemWindowBodies.Need(want.getKey(), ItemWindowBodies.nameOf(want.getKey()), color, want.getValue(),
+				ItemHoldings.count(want.getKey()));
 			needs.add(need);
 			if (!need.enough()) {
 				missingCount++;
@@ -349,449 +333,259 @@ final class ItemDetailView {
 		}
 	}
 
-	/** @return what the shown recipe costs in coins, at the prices known */
-	private double craftCost() {
-		ItemRepo.Recipe shown = shownRecipe();
-		if (shown == null) {
+	/** @return what a recipe costs in coins at the prices known, 0 without one */
+	private static double craftCost(ItemRepo.Recipe recipe) {
+		if (recipe == null) {
 			return 0;
 		}
 		double cost = 0;
-		for (ItemRepo.Stack stack : shown.inputs()) {
+		for (ItemRepo.Stack stack : recipe.inputs()) {
 			if (stack != null) {
-				cost += stack.id().equals(COIN) ? stack.count() : SkyBlockPrices.price(stack.id()) * stack.count();
+				cost += stack.id().equals(ItemWindowBodies.COIN) ? stack.count() : SkyBlockPrices.price(stack.id()) * stack.count();
 			}
 		}
 		return cost;
 	}
 
-	/** The price: bazaar buy for bazaar items, otherwise the lowest BIN; one quiet line of the other values; the trend against the 3-day median. */
-	private void readPrice() {
-		double buy = SkyBlockPrices.bazaarBuy(id);
-		double median = SkyBlockPrices.median(id);
-		StringBuilder extra = new StringBuilder();
-		if (buy > 0) {
-			priceValue = buy;
-			priceLabel = "buy";
-			double sell = SkyBlockPrices.bazaarSell(id);
-			if (sell > 0) {
-				extra.append("Sell ").append(coins(sell));
-			}
-			extra.append(extra.isEmpty() ? "" : " · ").append("per item");
-		} else {
-			priceValue = SkyBlockPrices.lowestBin(id);
-			priceLabel = "lowest BIN";
-			if (!Double.isNaN(median) && median > 0) {
-				extra.append("Avg 3 days ").append(coins(median));
-			}
-			double cost = craftCost();
-			if (!needs.isEmpty() && cost > 0) {
-				extra.append(extra.isEmpty() ? "" : " · ").append("craft ").append(coins(cost));
-			}
-		}
-		priceExtra = extra.toString();
-		trend = "";
-		if (priceValue > 0 && !Double.isNaN(median) && median > 0) {
-			double change = (priceValue - median) / median * 100.0;
-			trend = String.format(Locale.ROOT, "%+.0f %%", change);
-			trendColor = change >= 0 ? GOOD : BAD;
-		}
-		priceLine = PriceHistory.line(id, median, priceValue);
-	}
-
-	private boolean craftable() {
-		ItemRepo.Recipe shown = shownRecipe();
-		return entry != null && entry.craftable && shown != null && shown.crafting();
-	}
-
 	// --------------------------------------------------------------------------------------------------- drawing
 
 	/**
-	 * Draws the window where the inventory is.
+	 * Draws the window: beside what was clicked, docked in its own panel, or in the inventory's place when there is no room for it elsewhere.
 	 *
-	 * @param window   the inventory's place
-	 * @param listLeft where the list starts, or the screen's width without a list
+	 * @param where    the window's box
+	 * @param coverGui whether it takes the inventory's place: the inventory is covered (its slots are away meanwhile)
+	 * @param gui      the inventory or chest window
 	 * @return the item under the mouse (an ingredient, a drop, a use), or null
 	 */
-	ItemRepo.Entry draw(Canvas ui, GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen, int[] window, int listLeft, float dt, int mouseX, int mouseY) {
+	ItemRepo.Entry draw(Canvas ui, GuiGraphicsExtractor graphics, int[] where, boolean coverGui, int[] gui, float dt, int mouseX, int mouseY) {
 		if (id == null) {
 			return null;
 		}
 		refresh();
-		hitBoxes.clear();
-		hitIds.clear();
+		hits.clear();
 		tabBoxes.clear();
-		System.arraycopy(ItemListLayout.detail(screen.width, screen.height, window, listLeft), 0, box, 0, 4);
-		System.arraycopy(window, 0, covered, 0, 4);
+		System.arraycopy(where, 0, box, 0, 4);
+		if (coverGui) {
+			System.arraycopy(gui, 0, covered, 0, 4);
+		} else {
+			Arrays.fill(covered, 0);
+		}
 		float open = Mth.clamp(opening.step(1f, dt), 0f, 1f);
 		float alphaBefore = Draw.alpha();
 		graphics.nextStratum();
-		// the inventory's own background stays under it: it is covered at once, the window itself fades in
-		ui.rounded(window[0], window[1], window[2], window[3], Radius.XL, COVER);
+		if (coverGui) {
+			// the inventory's own background stays under it: it is covered at once, the window itself fades in
+			ui.rounded(gui[0], gui[1], gui[2], gui[3], Radius.XL, COVER);
+		}
 		ui.rounded(box[0], box[1], box[2], box[3], RADIUS, Draw.withOpacity(COVER, COVER_OPACITY));
 		Draw.setAlpha(alphaBefore * open);
-		ItemRepo.Entry hovered = null;
 		try {
-			HudTheme.panel(ui, box[0], box[1], box[2], box[3], RADIUS, HudTheme.opacity(), feature.glow());
+			HudTheme.panel(ui, box[0], box[1], box[2], box[3], RADIUS, ItemSearchLook.opacity(), feature.glow());
+			ui.ring(box[0], box[1], box[2], box[3], RADIUS, 1, Draw.withOpacity(HudTheme.text(), EDGE_OPACITY));
 			int left = box[0] + PAD;
 			int width = box[2] - 2 * PAD;
-			int bottom = box[1] + box[3] - PAD;
+			int actionsTop = box[1] + box[3] - PAD - ItemWindowActions.HEIGHT;
 			int top = drawHeader(ui, graphics, left, width, box[1] + PAD, mouseX, mouseY);
-			if (priceValue > 0 && !source && box[3] >= LEAST_HEIGHT_FOR_PRICE) {
-				top = drawPrice(ui, left, width, top + SECTION_GAP);
+			if (!source && market.topValue() > 0) {
+				top = drawPrice(ui, left, top + TOP_GAP);
 			}
-			if (!source) {
-				top = drawHave(ui, left, width, top + SECTION_GAP, mouseX, mouseY);
-			}
-			top += SECTION_GAP;
-			prevPage = new int[4];
-			nextPage = new int[4];
-			craftButton = new int[4];
-			sourceLink = new int[4];
+			Arrays.fill(prevPage, 0);
+			Arrays.fill(nextPage, 0);
+			Arrays.fill(sourceLink, 0);
+			market.hide();
+			top += TOP_GAP;
 			if (tabs.isEmpty()) {
 				ui.textAtScaled(ui.fitScaled(NOTHING, width, TextScale.SMALL), left, top + 4f, TextScale.SMALL, HudTheme.secondary());
 			} else {
 				top = drawTabs(ui, left, width, top, mouseX, mouseY);
-				drawBody(ui, graphics, left, width, top, bottom, mouseX, mouseY);
+				drawBody(ui, graphics, left, width, top + BODY_GAP, actionsTop - BODY_GAP, mouseX, mouseY);
 			}
-			for (int i = 0; i < hitBoxes.size(); i++) {
-				if (PanelKit.inside(hitBoxes.get(i), mouseX, mouseY)) {
-					hovered = ItemRepo.get(hitIds.get(i));
-				}
-			}
+			actions.draw(ui, left, width, actionsTop, !source, feature.canQuickCraft(id), missingCount, source ? MarketSearch.Market.NONE : market.market(),
+				!wiki.isEmpty(), mouseX, mouseY);
 		} finally {
 			Draw.setAlpha(alphaBefore);
 		}
-		return hovered;
+		String under = hits.at(mouseX, mouseY);
+		return under == null ? null : ItemRepo.get(under);
 	}
 
-	/** The item on a soft glow in its rarity color, its name, rarity and type; back, pin and close. */
+	/** The item on a soft glow in its rarity color, its name, rarity and type; back, pin and close. @return the y below it */
 	private int drawHeader(Canvas ui, GuiGraphicsExtractor graphics, int left, int width, int y, int mouseX, int mouseY) {
 		int rarity = entry == null ? HudTheme.text() : entry.rarityColor();
 		int x = left;
-		backButton = new int[]{x, y + (HEADER - BUTTON) / 2, BUTTON, BUTTON};
+		place(backButton, x, y + (HEADER - BUTTON) / 2, BUTTON, BUTTON);
 		iconButton(ui, backButton, "chevron", true, mouseX, mouseY);
 		x += BUTTON + 4;
-		ui.softLight(x + ICON_TILE / 2f, y + ICON_TILE / 2f, ICON_TILE * 0.7f, Draw.withOpacity(rarity, 0.4f));
-		ui.rounded(x, y, ICON_TILE, ICON_TILE, Radius.MD, Draw.withOpacity(rarity, 0.12f));
-		graphics.item(stackOf(id), x + (ICON_TILE - 16) / 2, y + (ICON_TILE - 16) / 2);
+		ui.softLight(x + ICON_TILE / 2f, y + ICON_TILE / 2f, ICON_TILE * 0.7f, Draw.withOpacity(rarity, ICON_GLOW));
+		ui.rounded(x, y, ICON_TILE, ICON_TILE, Radius.MD, Draw.withOpacity(rarity, ICON_FILL));
+		ItemTiles.item(graphics, ItemWindowBodies.stackOf(id), x, y, ICON_TILE);
 		int textX = x + ICON_TILE + 7;
 		int buttonsLeft = left + width - 2 * BUTTON - 4;
-		pinButton = new int[]{buttonsLeft, y + (HEADER - BUTTON) / 2, BUTTON, BUTTON};
-		closeButton = new int[]{buttonsLeft + BUTTON + 4, y + (HEADER - BUTTON) / 2, BUTTON, BUTTON};
+		place(pinButton, buttonsLeft, y + (HEADER - BUTTON) / 2, BUTTON, BUTTON);
+		place(closeButton, buttonsLeft + BUTTON + 4, y + (HEADER - BUTTON) / 2, BUTTON, BUTTON);
 		iconButton(ui, pinButton, "pin", false, mouseX, mouseY);
-		if (feature.isFavorite(id)) {
+		if (feature.isPinned(id)) {
 			ui.ring(pinButton[0], pinButton[1], BUTTON, BUTTON, Radius.SM, 1, ui.accent());
 		}
 		iconButton(ui, closeButton, "close", false, mouseX, mouseY);
 		float room = buttonsLeft - 6 - textX;
-		ui.textAtScaledBold(ui.fitScaled(nameOf(id), room, TextScale.BODY), textX, y + 1f, TextScale.BODY, HudTheme.readable(rarity));
+		// the name whole: on one row, a little smaller, or on two rows, before anything of it is cut; measured at both sizes, as text is not drawn
+		// exactly in proportion
+		Title title = title(ItemWindowBodies.nameOf(id), room, text -> Math.max(ui.boldWidthScaled(text, TextScale.BODY),
+			ui.boldWidthScaled(text, TextScale.BODY * TITLE_SHRINK) / TITLE_SHRINK));
+		float size = TextScale.BODY * title.scale();
+		boolean two = title.second() != null;
+		ui.textAtScaledBold(fitBold(ui, title.first(), room, size), textX, y + (two ? TITLE_TWO_ROWS_TOP : 1f), size, HudTheme.readable(rarity));
+		if (two) {
+			ui.textAtScaledBold(fitBold(ui, title.second(), room, size), textX, y + TITLE_TWO_ROWS_TOP + TITLE_ROW, size, HudTheme.readable(rarity));
+		}
 		String label = info == null ? "" : info.label();
 		if (!label.isEmpty()) {
-			ui.textAtScaledBold(ui.fitScaled(label.toUpperCase(Locale.ROOT), room, TextScale.SMALL), textX, y + 12f, TextScale.SMALL, Draw.withOpacity(HudTheme.readable(rarity), 0.85f));
+			ui.textAtScaledBold(ui.fitScaled(label.toUpperCase(Locale.ROOT), room, TextScale.SMALL), textX, y + (two ? TITLE_TWO_ROWS_TOP + 2 * TITLE_ROW : 12f),
+				TextScale.SMALL, Draw.withOpacity(HudTheme.readable(rarity), LABEL_OPACITY));
 		}
 		return y + HEADER;
 	}
 
+	private static void place(int[] target, int x, int y, int width, int height) {
+		target[0] = x;
+		target[1] = y;
+		target[2] = width;
+		target[3] = height;
+	}
+
+	/** The one number at the top: the lowest BIN large in gold, with its label. @return the y below it */
+	private int drawPrice(Canvas ui, int left, int y) {
+		String big = coins(market.topValue());
+		ui.textAtScaledBold(big, left, y, TextScale.HEADING, ItemWindowMarket.GOLD);
+		float bigWidth = ui.boldWidthScaled(big, TextScale.HEADING);
+		ui.textAtScaled(market.topLabel(), left + bigWidth + 5, y + 3f, TextScale.SMALL, HudTheme.secondary());
+		return y + PRICE_ROW;
+	}
+
+	/**
+	 * Fits a name into the title's room without cutting it: at full size when it fits; else a little smaller; else in two rows, broken at the
+	 * space that leaves the rows most alike. Only a name too long even for that (or one long word) is left to be cut by the caller.
+	 *
+	 * @param width the width of a text at the title's full size
+	 */
+	static Title title(String name, float room, java.util.function.ToDoubleFunction<String> width) {
+		if (width.applyAsDouble(name) <= room) {
+			return new Title(name, null, 1f);
+		}
+		if (width.applyAsDouble(name) * TITLE_SHRINK <= room) {
+			return new Title(name, null, TITLE_SHRINK);
+		}
+		int best = -1;
+		double bestWidth = Double.MAX_VALUE;
+		for (int i = name.indexOf(' '); i > 0; i = name.indexOf(' ', i + 1)) {
+			double widest = Math.max(width.applyAsDouble(name.substring(0, i)), width.applyAsDouble(name.substring(i + 1)));
+			if (widest < bestWidth) {
+				bestWidth = widest;
+				best = i;
+			}
+		}
+		return best < 0 ? new Title(name, null, TITLE_SHRINK) : new Title(name.substring(0, best), name.substring(best + 1), TITLE_SHRINK);
+	}
+
+	/** @return a bold text as it is, or cut with "…" only when it is wider than the room at its size */
+	private static String fitBold(Canvas ui, String text, float room, float size) {
+		return ui.boldWidthScaled(text, size) <= room ? text : ui.fitScaled(text, room * 0.94f, size);
+	}
+
 	private static void iconButton(Canvas ui, int[] button, String icon, boolean pointsBack, int mouseX, int mouseY) {
 		boolean over = PanelKit.inside(button, mouseX, mouseY);
-		ui.rounded(button[0], button[1], button[2], button[3], Radius.SM, Draw.withOpacity(HudTheme.text(), over ? 0.16f : 0.08f));
+		ui.rounded(button[0], button[1], button[2], button[3], Radius.SM, Draw.withOpacity(HudTheme.text(), over ? BUTTON_HOVER : BUTTON_FILL));
 		if (pointsBack) {
-			var pose = ui.graphics().pose();
-			pose.pushMatrix();
-			pose.translate(button[0] + button[2] / 2f, button[1] + button[3] / 2f);
-			pose.rotate((float) (Math.PI / 2.0));
-			ui.icon("chevron", -3, -3, 6, HudTheme.text());
-			pose.popMatrix();
+			chevron(ui, button, (float) (Math.PI / 2.0));
 		} else {
-			ui.icon(icon, button[0] + (button[2] - 7) / 2, button[1] + (button[3] - 7) / 2, 7, HudTheme.text());
+			ui.icon(icon, button[0] + (button[2] - BUTTON_ICON) / 2, button[1] + (button[3] - BUTTON_ICON) / 2, BUTTON_ICON, HudTheme.text());
 		}
 	}
 
-	/** The tabs as a quiet row of words, smaller where they do not fit, with a line under the open one. @return the y below them */
+	private static void chevron(Canvas ui, int[] box, float turn) {
+		var pose = ui.graphics().pose();
+		pose.pushMatrix();
+		pose.translate(box[0] + box[2] / 2f, box[1] + box[3] / 2f);
+		pose.rotate(turn);
+		ui.icon("chevron", -3, -3, 6, HudTheme.text());
+		pose.popMatrix();
+	}
+
+	/** The tabs as a row of words with a line under the open one and a hairline under the row; smaller where they do not fit. @return the y below them */
 	private int drawTabs(Canvas ui, int left, int width, int y, int mouseX, int mouseY) {
 		float wide = 0f;
 		for (ItemTabs.Tab each : tabs) {
-			wide += ui.widthScaled(each.kind().label, 1f);
+			wide += ui.boldWidthScaled(each.kind().label, 1f);
 		}
-		float scale = Math.min(TextScale.SMALL, (width - (tabs.size() - 1f) * TAB_GAP - 2f * ARROW - 30f) / Math.max(1f, wide));
+		float room = width - (tabs.size() - 1f) * TAB_GAP - pageRoom(ui);
+		float scale = Math.min(TextScale.BODY, room / Math.max(1f, wide));
+		float textY = y + TABS / 2f - BODY_HALF * scale;
 		float x = left;
 		for (int i = 0; i < tabs.size(); i++) {
 			String label = tabs.get(i).kind().label;
-			float labelWidth = ui.widthScaled(label, scale);
-			int[] hit = {Math.round(x) - 3, y - 2, Math.round(labelWidth) + 6, TABS};
+			float labelWidth = ui.boldWidthScaled(label, scale);
+			int[] hit = {Math.round(x) - TAB_PAD, y, Math.round(labelWidth) + 2 * TAB_PAD, TABS};
 			tabBoxes.add(hit);
 			boolean chosen = i == tab;
 			boolean over = PanelKit.inside(hit, mouseX, mouseY);
-			int color = chosen ? 0xFFFFFFFF : over ? Draw.mix(HudTheme.secondary(), 0xFFFFFFFF, 0.5f) : HudTheme.secondary();
 			if (chosen) {
-				ui.textAtScaledBold(label, x, y, scale, color);
-				ui.roundedSmooth(x + (labelWidth - TAB_UNDERLINE) / 2f, y + 9f, TAB_UNDERLINE, 1.5f, 0.75f, ui.accent());
+				ui.textAtScaledBold(label, x, textY, scale, HudTheme.text());
+				ui.roundedSmooth(x - TAB_PAD, y + TABS - TAB_LINE, labelWidth + 2 * TAB_PAD, TAB_LINE, TAB_LINE / 2f, ui.accent());
 			} else {
-				ui.textAtScaled(label, x, y, scale, color);
+				ui.textAtScaled(label, x, textY, scale, over ? HudTheme.text() : HudTheme.secondary());
 			}
 			x += labelWidth + TAB_GAP;
 		}
-		return y + TABS;
+		ui.fill(left, y + TABS, width, 1, HudTheme.line(EDGE_OPACITY));
+		drawPageArrows(ui, left, width, y, mouseX, mouseY);
+		return y + TABS + 1;
+	}
+
+	/** @return the room the page arrows take at the right of the tabs' row */
+	private float pageRoom(Canvas ui) {
+		return pages > 1 ? 2f * ARROW + ui.widthScaled("00 / 00", TextScale.SMALL) + 12f : 0f;
 	}
 
 	/** The arrows and "1 / 2" at the right of the tabs' row, when there are several pages. */
 	private void drawPageArrows(Canvas ui, int left, int width, int y, int mouseX, int mouseY) {
-		pages = Math.max(1, pages);
 		if (pages <= 1) {
 			return;
 		}
 		String counter = (page + 1) + " / " + pages;
 		float counterWidth = ui.widthScaled(counter, TextScale.SMALL);
 		float from = left + width - 2f * ARROW - counterWidth - 4f;
-		prevPage = new int[]{Math.round(from), y - TABS - 1, ARROW, ARROW};
-		nextPage = new int[]{Math.round(from + ARROW + counterWidth + 4f), y - TABS - 1, ARROW, ARROW};
+		int arrowY = y + (TABS - ARROW) / 2;
+		place(prevPage, Math.round(from), arrowY, ARROW, ARROW);
+		place(nextPage, Math.round(from + ARROW + counterWidth + 4f), arrowY, ARROW, ARROW);
 		arrow(ui, prevPage, true, mouseX, mouseY);
-		ui.textAtScaled(counter, from + ARROW + 2f, y - TABS, TextScale.SMALL, HudTheme.secondary());
+		ui.textAtScaled(counter, from + ARROW + 2f, y + TABS / 2f - TEXT_HALF, TextScale.SMALL, HudTheme.secondary());
 		arrow(ui, nextPage, false, mouseX, mouseY);
-	}
-
-	private void drawBody(Canvas ui, GuiGraphicsExtractor graphics, int left, int width, int top, int bottom, int mouseX, int mouseY) {
-		ItemTabs.Kind kind = currentKind();
-		if (kind == ItemTabs.Kind.USED_IN) {
-			drawUsedIn(ui, graphics, left, width, top, bottom, mouseX, mouseY);
-		} else if (listTab()) {
-			drawRows(ui, graphics, left, width, top, bottom, mouseX, mouseY);
-		} else {
-			pages = shownRecipes().size();
-			drawRecipe(ui, graphics, left, width, top, bottom, mouseX, mouseY);
-		}
-		drawPageArrows(ui, left, width, top, mouseX, mouseY);
-	}
-
-	/** A recipe: its grid with green or red borders, what it needs beside it with have/need, what it makes and where, and quick craft. */
-	private void drawRecipe(Canvas ui, GuiGraphicsExtractor graphics, int left, int width, int top, int bottom, int mouseX, int mouseY) {
-		ItemRepo.Recipe shown = shownRecipe();
-		if (shown == null) {
-			return;
-		}
-		for (int i = 0; i < 9; i++) {
-			ItemRepo.Stack stack = i < shown.inputs().size() ? shown.inputs().get(i) : null;
-			drawCell(ui, graphics, stack, left + i % 3 * (CELL + CELL_GAP), top + i / 3 * (CELL + CELL_GAP));
-		}
-		int listX = left + 3 * CELL + 2 * CELL_GAP + 8;
-		int listWidth = left + width - listX;
-		int fit = Math.max(1, (3 * CELL + 2 * CELL_GAP) / NEED_ROW);
-		for (int i = 0; i < needs.size() && i < fit; i++) {
-			Need need = needs.get(i);
-			int rowY = top + i * NEED_ROW;
-			ui.icon(need.enough() ? "check" : "close", listX, rowY + 1, 6, need.enough() ? GOOD : BAD);
-			String count = PanelKit.count(need.have()) + "/" + PanelKit.count(need.need());
-			float countWidth = ui.widthScaled(count, TextScale.SMALL);
-			ui.textAtScaled(count, listX + listWidth - countWidth, rowY, TextScale.SMALL, need.enough() ? HudTheme.text() : HudTheme.secondary());
-			ui.textAtScaled(ui.fitScaled(need.name(), listWidth - countWidth - 14, TextScale.SMALL), listX + 9, rowY, TextScale.SMALL, HudTheme.readable(need.color()));
-		}
-		int y = top + 3 * CELL + 2 * CELL_GAP + 4;
-		String where = shown.crafting() ? shown.note() : shown.source() + (shown.note().isEmpty() ? "" : " · " + shown.note());
-		if (!where.isEmpty() && y + NOTE_ROW <= bottom) {
-			boolean link = !shown.sourceId().isEmpty() && ItemRepo.get(shown.sourceId()) != null;
-			String shownWhere = ui.fitScaled(where, width, TextScale.SMALL);
-			sourceLink = link ? new int[]{left, y - 1, Math.round(ui.widthScaled(shownWhere, TextScale.SMALL)), NOTE_ROW} : new int[4];
-			boolean over = link && PanelKit.inside(sourceLink, mouseX, mouseY);
-			ui.textAtScaled(shownWhere, left, y, TextScale.SMALL, over ? ui.accent() : HudTheme.secondary());
-			y += NOTE_ROW + 2;
-		}
-		if (craftable() && y + CRAFT_BUTTON <= bottom) {
-			String missing = missingCount == 0 ? "" : missingCount + " missing";
-			float missingWidth = missing.isEmpty() ? 0f : ui.widthScaled(missing, TextScale.SMALL) + 8;
-			craftButton = new int[]{left, y, Math.round(width - missingWidth), CRAFT_BUTTON};
-			if (PanelKit.inside(craftButton, mouseX, mouseY)) {
-				ui.rounded(craftButton[0], craftButton[1], craftButton[2], CRAFT_BUTTON, Radius.MD, Draw.withOpacity(HudTheme.text(), 0.08f));
-			}
-			String label = "Quick craft";
-			float labelWidth = ui.boldWidthScaled(label, TextScale.SMALL);
-			float contentX = craftButton[0] + (craftButton[2] - CRAFT_ICON - CRAFT_ICON_GAP - labelWidth) / 2f;
-			ui.icon("pickaxe", Math.round(contentX), y + (CRAFT_BUTTON - CRAFT_ICON) / 2, CRAFT_ICON, HudTheme.text());
-			ui.textAtScaledBold(label, contentX + CRAFT_ICON + CRAFT_ICON_GAP, y + CRAFT_BUTTON / 2f - 3.5f, TextScale.SMALL, HudTheme.text());
-			if (!missing.isEmpty()) {
-				ui.textAtScaled(missing, left + width - missingWidth + 8, y + CRAFT_BUTTON / 2f - 3.5f, TextScale.SMALL, BAD);
-			}
-		}
-	}
-
-	/** A list: a mob's drops with their chances, an NPC's shop, or who drops the item. A click on a row opens it. */
-	private void drawRows(Canvas ui, GuiGraphicsExtractor graphics, int left, int width, int top, int bottom, int mouseX, int mouseY) {
-		int y = top;
-		if (!rowsNote.isEmpty()) {
-			ui.textAtScaled(ui.fitScaled(rowsNote, width, TextScale.SMALL), left, y, TextScale.SMALL, HudTheme.secondary());
-			y += NOTE_ROW + 2;
-		}
-		int perPage = Math.max(1, (bottom - y) / ROW);
-		pages = ItemTabs.pages(rows.size(), perPage);
-		page = Math.floorMod(page, pages);
-		int first = page * perPage;
-		for (int i = first; i < rows.size() && i < first + perPage; i++) {
-			Row row = rows.get(i);
-			int rowY = y + (i - first) * ROW;
-			int[] hit = {left, rowY, width, ROW - 1};
-			boolean known = row.target() != null && ItemRepo.get(row.target()) != null;
-			if (known && PanelKit.inside(hit, mouseX, mouseY)) {
-				ui.rounded(left - 3, rowY, width + 6, ROW - 1, Radius.SM, Draw.withOpacity(HudTheme.text(), 0.08f));
-			}
-			graphics.item(stackOf(row.icon()), left, rowY);
-			float rightWidth = row.right().isEmpty() ? 0f : Math.min(width * 0.5f, ui.widthScaled(row.right(), TextScale.SMALL));
-			float textRoom = width - TILE - rightWidth - 6f;
-			ui.textAtScaled(ui.fitScaled(row.text(), textRoom, TextScale.SMALL), left + TILE, rowY + 5f, TextScale.SMALL, HudTheme.text());
-			if (rightWidth > 0f) {
-				String right = ui.fitScaled(row.right(), rightWidth, TextScale.SMALL);
-				ui.textAtScaled(right, left + width - ui.widthScaled(right, TextScale.SMALL), rowY + 5f, TextScale.SMALL, HudTheme.secondary());
-			}
-			if (known) {
-				hitBoxes.add(hit);
-				hitIds.add(row.target());
-			}
-		}
-	}
-
-	/** What it is used in: its items in a grid, by pages. */
-	private void drawUsedIn(Canvas ui, GuiGraphicsExtractor graphics, int left, int width, int top, int bottom, int mouseX, int mouseY) {
-		int columns = Math.max(1, (width + TILE_GAP) / (TILE + TILE_GAP));
-		int lines = Math.max(1, (bottom - top + TILE_GAP) / (TILE + TILE_GAP));
-		int perPage = columns * lines;
-		pages = ItemTabs.pages(usedIn.size(), perPage);
-		page = Math.floorMod(page, pages);
-		int first = page * perPage;
-		for (int i = first; i < usedIn.size() && i < first + perPage; i++) {
-			String itemId = usedIn.get(i);
-			int x = left + (i - first) % columns * (TILE + TILE_GAP);
-			int y = top + (i - first) / columns * (TILE + TILE_GAP);
-			boolean over = mouseX >= x && mouseX < x + TILE && mouseY >= y && mouseY < y + TILE;
-			ui.rounded(x, y, TILE, TILE, Radius.SM, Draw.withOpacity(HudTheme.text(), over ? 0.14f : 0.06f));
-			graphics.item(stackOf(itemId), x + (TILE - 16) / 2, y + (TILE - 16) / 2);
-			hitBoxes.add(new int[]{x, y, TILE, TILE});
-			hitIds.add(itemId);
-		}
-	}
-
-	/** The price big in gold with its label, one quiet line of other values below, and the trend chip on the right. */
-	private int drawPrice(Canvas ui, int left, int width, int y) {
-		String big = coins(priceValue);
-		ui.textAtScaledBold(big, left, y, TextScale.HEADING, GOLD);
-		float bigWidth = ui.boldWidthScaled(big, TextScale.HEADING);
-		ui.textAtScaled(priceLabel, left + bigWidth + 5, y + 6f, TextScale.SMALL, HudTheme.secondary());
-		float extraRoom = width;
-		float lineRight = left + width;
-		if (!trend.isEmpty()) {
-			float chipWidth = ui.boldWidthScaled(trend, TextScale.SMALL) + 8;
-			float chipX = left + width - chipWidth;
-			lineRight = chipX - PRICE_LINE_GAP;
-			ui.roundedSmooth(chipX, y + 3f, chipWidth, 10f, Radius.XS, Draw.withOpacity(trendColor, 0.2f));
-			ui.textAtScaledBold(trend, chipX + 4, y + 4.5f, TextScale.SMALL, trendColor);
-			extraRoom = width - chipWidth - 6;
-		}
-		if (!priceExtra.isEmpty()) {
-			ui.textAtScaled(ui.fitScaled(priceExtra, extraRoom, TextScale.SMALL), left, y + 18f, TextScale.SMALL, HudTheme.secondary());
-		}
-		drawPriceLine(ui, lineRight - PRICE_LINE_WIDTH, y + 1f, PRICE_LINE_WIDTH, PRICE_LINE_HEIGHT);
-		return y + PRICE_HEIGHT;
-	}
-
-	/** The price over time in a soft gold line, with the room under it faintly filled: what was kept of this item so far, ending in the price now. */
-	private void drawPriceLine(Canvas ui, float x, float y, float width, float height) {
-		if (priceLine.length < 2) {
-			return;
-		}
-		double low = Double.MAX_VALUE;
-		double high = -Double.MAX_VALUE;
-		for (double point : priceLine) {
-			low = Math.min(low, point);
-			high = Math.max(high, point);
-		}
-		double range = high - low;
-		if (range <= 0) {
-			// no change kept yet: a flat line would say the price never moves
-			return;
-		}
-		float last = priceLine.length - 1f;
-		for (float px = 0f; px <= width; px += PRICE_LINE_STEP) {
-			float at = px / width * last;
-			int index = Math.min((int) at, priceLine.length - 2);
-			double value = Mth.lerp(at - index, priceLine[index], priceLine[index + 1]);
-			float share = (float) ((value - low) / range);
-			float lineY = y + (height - 1f) * (1f - share);
-			ui.roundedSmooth(x + px, lineY, PRICE_LINE_STEP, y + height - lineY, 0f, Draw.withOpacity(GOLD, PRICE_LINE_FILL));
-			ui.roundedSmooth(x + px, lineY, PRICE_LINE_STEP, PRICE_LINE_THICKNESS, 0f, GOLD);
-		}
-	}
-
-	/** "You have N" with where, cut with "…" if long, and the Find link. */
-	private int drawHave(Canvas ui, int left, int width, int y, int mouseX, int mouseY) {
-		String count = "You have " + have;
-		ui.textAtScaledBold(count, left, y, TextScale.SMALL, HudTheme.text());
-		float x = left + ui.boldWidthScaled(count, TextScale.SMALL) + 5;
-		findButton = new int[4];
-		float room = left + width - x;
-		if (have > 0) {
-			String find = "Find";
-			float findWidth = ui.boldWidthScaled(find, TextScale.SMALL);
-			findButton = new int[]{Math.round(left + width - findWidth), y - 2, Math.round(findWidth), 11};
-			boolean over = PanelKit.inside(findButton, mouseX, mouseY);
-			ui.textAtScaledBold(find, findButton[0], y, TextScale.SMALL, over ? Draw.mix(ui.accent(), 0xFFFFFFFF, 0.3f) : ui.accent());
-			room -= findWidth + 8;
-		}
-		if (!places.isEmpty()) {
-			ui.textAtScaled(ui.fitScaled(places, room, TextScale.SMALL), x, y, TextScale.SMALL, HudTheme.secondary());
-		}
-		return y + HAVE_HEIGHT;
-	}
-
-
-	/** Draws a cell of the recipe grid: empty, or the ingredient with its count and a green or red border. */
-	private void drawCell(Canvas ui, GuiGraphicsExtractor graphics, ItemRepo.Stack stack, int x, int y) {
-		if (stack == null) {
-			ui.rounded(x, y, CELL, CELL, Radius.SM, Draw.withOpacity(HudTheme.slot(), 0.8f));
-			return;
-		}
-		int ring = ringOf(stack);
-		ui.rounded(x, y, CELL, CELL, Radius.SM, Draw.withOpacity(ring == 0 ? HudTheme.slot() : ring, ring == 0 ? 0.8f : 0.14f));
-		graphics.item(stackOf(stack.id()), x + (CELL - 16) / 2, y + (CELL - 16) / 2);
-		long count = Math.round(stack.count());
-		if (count > 1) {
-			String text = PanelKit.count(count);
-			float w = ui.boldWidthScaled(text, TextScale.SMALL);
-			ui.textAtScaledBold(text, x + CELL - w - 1f, y + CELL - 8f, TextScale.SMALL, 0xFFFFFFFF);
-		}
-		if (ring != 0) {
-			ui.ring(x, y, CELL, CELL, Radius.SM, 1, ring);
-		}
-		if (!stack.id().equals("SKYBLOCK_COIN")) {
-			hitBoxes.add(new int[]{x, y, CELL, CELL});
-			hitIds.add(stack.id());
-		}
-	}
-
-	/** @return the border of an ingredient: green when the player has enough of it, red when not, none for coins */
-	private int ringOf(ItemRepo.Stack stack) {
-		for (Need need : needs) {
-			if (need.id().equals(stack.id())) {
-				return need.enough() ? GOOD : BAD;
-			}
-		}
-		return 0;
 	}
 
 	private static void arrow(Canvas ui, int[] box, boolean previous, int mouseX, int mouseY) {
 		boolean over = PanelKit.inside(box, mouseX, mouseY);
-		ui.rounded(box[0], box[1], box[2], box[3], Radius.XS, Draw.withOpacity(HudTheme.text(), over ? 0.16f : 0.07f));
-		var pose = ui.graphics().pose();
-		pose.pushMatrix();
-		pose.translate(box[0] + box[2] / 2f, box[1] + box[3] / 2f);
-		pose.rotate((float) (previous ? Math.PI / 2.0 : -Math.PI / 2.0));
-		ui.icon("chevron", -3, -3, 6, HudTheme.text());
-		pose.popMatrix();
+		ui.rounded(box[0], box[1], box[2], box[3], Radius.XS, Draw.withOpacity(HudTheme.text(), over ? BUTTON_HOVER : BUTTON_FILL));
+		chevron(ui, box, (float) (previous ? Math.PI / 2.0 : -Math.PI / 2.0));
 	}
 
-
-	private static ItemStack stackOf(String itemId) {
-		ItemRepo.Entry item = ItemRepo.get(itemId);
-		if (item != null) {
-			return item.stack();
+	private void drawBody(Canvas ui, GuiGraphicsExtractor graphics, int left, int width, int top, int bottom, int mouseX, int mouseY) {
+		ItemTabs.Kind kind = currentKind();
+		if (kind == ItemTabs.Kind.MARKET) {
+			pages = 1;
+			market.draw(ui, left, width, top, bottom, mouseX, mouseY);
+		} else if (kind == ItemTabs.Kind.USED_IN) {
+			pages = ItemWindowBodies.usedIn(ui, graphics, usedIn, page, left, width, top, bottom, hits, mouseX, mouseY);
+		} else if (recipeTab()) {
+			pages = shownRecipes().size();
+			ItemRepo.Recipe shown = shownRecipe();
+			if (shown != null) {
+				ItemWindowBodies.recipe(ui, graphics, shown, needs, left, width, top, bottom, hits, sourceLink, mouseX, mouseY);
+			}
+		} else {
+			pages = ItemWindowBodies.rows(ui, graphics, rows, rowsNote, page, left, width, top, bottom, hits, mouseX, mouseY);
 		}
-		return new ItemStack(itemId != null && itemId.equals(COIN) ? Items.GOLD_NUGGET : Items.BARRIER);
+		page = Math.floorMod(page, Math.max(1, pages));
 	}
 
 	/** @return a compact but clear price: 856, 1.4k, 12.5k, 4.75M, 1.2B */
@@ -813,6 +607,26 @@ final class ItemDetailView {
 
 	// --------------------------------------------------------------------------------------------------- input
 
+	/** @return whether the window is in the inventory's place now */
+	boolean coversGui() {
+		return id != null && covered[2] > 0;
+	}
+
+	/** @return whether a point is on one of the window's own controls (back, pin, close, tabs, arrows, the source, the market, the action bar), not on an item */
+	boolean onControl(double mouseX, double mouseY) {
+		for (int[] control : new int[][]{backButton, pinButton, closeButton, prevPage, nextPage, sourceLink}) {
+			if (PanelKit.inside(control, mouseX, mouseY)) {
+				return true;
+			}
+		}
+		for (int[] tabBox : tabBoxes) {
+			if (PanelKit.inside(tabBox, mouseX, mouseY)) {
+				return true;
+			}
+		}
+		return market.onMarket(mouseX, mouseY) || market.onLink(mouseX, mouseY) || actions.at(mouseX, mouseY) != ItemWindowActions.Action.NONE;
+	}
+
 	/** @return whether a click was on the window or the inventory's place; a click elsewhere is for the caller */
 	boolean click(double mouseX, double mouseY) {
 		if (id == null || !contains(mouseX, mouseY)) {
@@ -820,16 +634,32 @@ final class ItemDetailView {
 		}
 		if (PanelKit.inside(backButton, mouseX, mouseY)) {
 			back();
-			return true;
-		}
-		if (PanelKit.inside(pinButton, mouseX, mouseY)) {
-			feature.toggleFavorite(id);
-			return true;
-		}
-		if (PanelKit.inside(closeButton, mouseX, mouseY)) {
+		} else if (PanelKit.inside(pinButton, mouseX, mouseY)) {
+			feature.togglePin(id);
+		} else if (PanelKit.inside(closeButton, mouseX, mouseY)) {
 			close();
-			return true;
+		} else if (PanelKit.inside(prevPage, mouseX, mouseY) || PanelKit.inside(nextPage, mouseX, mouseY)) {
+			page = ItemTabs.stepped(page, PanelKit.inside(prevPage, mouseX, mouseY) ? -1 : 1, pages);
+			refreshedAt = 0L;
+		} else if (market.onMarket(mouseX, mouseY)) {
+			feature.openMarket(id);
+		} else if (market.onLink(mouseX, mouseY)) {
+			market.openLink();
+		} else if (PanelKit.inside(sourceLink, mouseX, mouseY)) {
+			ItemRepo.Recipe shown = shownRecipe();
+			if (shown != null) {
+				open(shown.sourceId());
+			}
+		} else if (!clickTab(mouseX, mouseY) && !clickAction(mouseX, mouseY)) {
+			String clicked = hits.at(mouseX, mouseY);
+			if (clicked != null && !clicked.equals(id)) {
+				open(clicked);
+			}
 		}
+		return true;
+	}
+
+	private boolean clickTab(double mouseX, double mouseY) {
 		for (int i = 0; i < tabBoxes.size(); i++) {
 			if (PanelKit.inside(tabBoxes.get(i), mouseX, mouseY)) {
 				tab = i;
@@ -838,30 +668,16 @@ final class ItemDetailView {
 				return true;
 			}
 		}
-		if (PanelKit.inside(prevPage, mouseX, mouseY) || PanelKit.inside(nextPage, mouseX, mouseY)) {
-			page = ItemTabs.stepped(page, PanelKit.inside(prevPage, mouseX, mouseY) ? -1 : 1, pages);
-			refreshedAt = 0L;
-			return true;
-		}
-		if (PanelKit.inside(craftButton, mouseX, mouseY)) {
-			feature.quickCraft(id);
-			return true;
-		}
-		if (PanelKit.inside(findButton, mouseX, mouseY)) {
-			feature.findInStorage(id);
-			return true;
-		}
-		if (PanelKit.inside(sourceLink, mouseX, mouseY)) {
-			ItemRepo.Recipe shown = shownRecipe();
-			if (shown != null) {
-				open(shown.sourceId());
-			}
-			return true;
-		}
-		for (int i = 0; i < hitBoxes.size(); i++) {
-			if (PanelKit.inside(hitBoxes.get(i), mouseX, mouseY) && !hitIds.get(i).equals(id)) {
-				open(hitIds.get(i));
-				return true;
+		return false;
+	}
+
+	private boolean clickAction(double mouseX, double mouseY) {
+		switch (actions.at(mouseX, mouseY)) {
+			case CRAFT -> feature.quickCraft(id);
+			case MARKET -> feature.openMarket(id);
+			case WIKI -> ItemWindowActions.openLink(wiki);
+			case NONE -> {
+				return false;
 			}
 		}
 		return true;

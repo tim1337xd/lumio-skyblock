@@ -1,0 +1,78 @@
+{
+  "Temple": [
+    {
+      "blockPos": {"x": 5, "y": 63, "z": 23},
+      "color": "#FF5555FF",
+      "filled": false,
+      "depth": false,
+      "aabb": {"minX": 0.0, "minY": 0.0, "minZ": 0.0, "maxX": 1.0, "maxY": 1.0, "maxZ": 1.0},
+      "title": ""
+    },
+    {
+      "blockPos": {"x": 12, "y": 70, "z": 9},
+      "color": "#55FF55FF",
+      "filled": false,
+      "depth": true,
+      "aabb": {"minX": 0.0, "minY": 0.0, "minZ": 0.0, "maxX": 1.0, "maxY": 1.0, "maxZ": 1.0},
+      "title": "",
+      "type": "SECRET"
+    }
+  ],
+  "Pipes": [
+    {
+      "blockPos": {"x": 3, "y": 68, "z": 4},
+      "color": "#5555FFFF",
+      "filled": false,
+      "depth": false,
+      "aabb": {"minX": 0.0, "minY": 0.0, "minZ": 0.0, "maxX": 1.0, "maxY": 1.0, "maxZ": 1.0},
+      "title": "",
+      "type": "NORMAL"
+    },
+    {
+      "blockPos": {"x": 20, "y": 72, "z": 18},
+      "color": "#FFAA00FF",
+      "filled": true,
+      "depth": false,
+      "aabb": {"minX": 0.25, "minY": 0.0, "minZ": 0.25, "maxX": 0.75, "maxY": 0.5, "maxZ": 0.75},
+      "title": "2"
+    },
+    {
+      "blockPos": {"x": 27, "y": 66, "z": 2},
+      "color": "#AA00AAFF",
+      "filled": false,
+      "depth": false,
+      "aabb": {"minX": 0.0, "minY": 0.0, "minZ": 0.0, "maxX": 1.0, "maxY": 1.0, "maxZ": 1.0},
+      "title": ""
+    }
+  ],
+  "Melon": [
+    {
+      "blockPos": {"x": 8, "y": 69, "z": 26},
+      "color": "#00AAAAFF",
+      "filled": false,
+      "depth": true,
+      "aabb": {"minX": 0.0, "minY": 0.0, "minZ": 0.0, "maxX": 1.0, "maxY": 1.0, "maxZ": 1.0},
+      "title": "1",
+      "type": "SECRET"
+    }
+  ],
+  "Spikes": [
+    {
+      "blockPos": {"x": 14, "y": 75, "z": 14},
+      "color": "#FFFF5580",
+      "filled": true,
+      "depth": false,
+      "aabb": {"minX": 0.0, "minY": 0.0, "minZ": 0.0, "maxX": 1.0, "maxY": 1.0, "maxZ": 1.0},
+      "title": "Lever"
+    },
+    {
+      "blockPos": {"x": 1, "y": 62, "z": 29},
+      "color": "#FFFFFFFF",
+      "filled": false,
+      "depth": false,
+      "aabb": {"minX": 0.0, "minY": 0.0, "minZ": 0.0, "maxX": 1.0, "maxY": 1.0, "maxZ": 1.0},
+      "title": ""
+    }
+  ],
+  "A Room Nobody Named": []
+}

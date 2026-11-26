@@ -104,7 +104,7 @@ public class FarmingHudFeature extends AddonPanel {
 	}
 
 	public FarmingHudFeature() {
-		super("farming_hud", "Farming", "The vinyl of the vacuum, the pest spray, the fortune of Pesthunter Phillip, the Bonus Pest Chance and the Mantid bonus, in one panel.", false, Anchor.LEFT, false, 200f, 340f);
+		super("farming_hud", "Farming", "Vinyl, spray, Phillip's fortune and bonuses.", false, Anchor.LEFT, false, 200f, 340f);
 		offerCardSize();
 		iconRgb(SystemColors.GREEN_RGB);
 		iconName("wheat");

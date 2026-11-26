@@ -352,6 +352,7 @@ public final class SkyBlockArea {
 	private static boolean mines;
 	private static boolean dwarvenMines;
 	private static boolean garden;
+	private static boolean mineshaft;
 
 	private static void places() {
 		refresh();
@@ -367,6 +368,7 @@ public final class SkyBlockArea {
 		dwarvenMines = matches(island, "dwarven mines", "mineshaft", "glacite") || matches(zone, "dwarven", "glacite", "royal mines", "lava springs", "cliffside veins",
 			"rampart", "upper mines", "goblin burrows", "forge", "mineshaft", "fossil research", "great glacite lake");
 		garden = matches(island, "garden") || matches(zone, "garden", "plot");
+		mineshaft = matches(island, "mineshaft") || matches(zone, "mineshaft");
 	}
 
 	/** @return whether the player is on a mining island: Dwarven Mines, Crystal Hollows, a mineshaft, Deep Caverns or Gold Mine */
@@ -383,7 +385,8 @@ public final class SkyBlockArea {
 
 	/** @return whether the player is in a Glacite Mineshaft, where the corpses are */
 	public static boolean inMineshaft() {
-		return island().toLowerCase(Locale.ROOT).contains("mineshaft") || zone().toLowerCase(Locale.ROOT).contains("mineshaft");
+		places();
+		return mineshaft;
 	}
 
 	/** @return whether the player is in the Garden */

@@ -1,5 +1,6 @@
 # Builds the add-on and runs the unit tests for each Minecraft version, on every push and release tag. Game tests are local only. It needs Lumio and its API in the
-# local Maven repository, so it first builds them from the public Lumio repository, at the release tag named by lumio_tag in gradle.properties: no package host, no secrets.
+# local Maven repository, so it first builds them from the public Lumio repository, at its release tag (lumio_tag in gradle.properties, such as
+# v1.0.0-beta.2; the releases before that were tagged per Minecraft version, v1.0.0-beta.1+mc26.3): no package host, no secrets.
 # Only in the public repository: the private one builds against Lumio's unreleased state on the developer's computer.
 name: build
 on:
@@ -33,7 +34,14 @@ jobs:
           path: addon
       - name: find the Lumio release to build against
         id: lumio
-        run: echo "tag=$(grep '^lumio_tag=' addon/gradle.properties | cut -d= -f2)" >> "$GITHUB_OUTPUT"
+        run: |
+          base=$(grep '^lumio_tag=' addon/gradle.properties | cut -d= -f2)
+          # one tag per Lumio version; the releases before had one per Minecraft version
+          if git ls-remote --exit-code --tags https://github.com/tim1337xd/Lumio "refs/tags/$base" > /dev/null; then
+            echo "tag=$base" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=$base+mc${{ matrix.minecraft }}" >> "$GITHUB_OUTPUT"
+          fi
       - name: checkout Lumio
         uses: actions/checkout@v6
         with:
@@ -62,3 +70,4 @@ jobs:
         with:
           name: lumio-skyblock-mc${{ matrix.minecraft }}
           path: ${{ matrix.jars }}
+          retention-days: 1

@@ -27,17 +27,17 @@ import net.minecraft.network.chat.Component;
  * page opens it. Its height and the pages per row are configurable.
  */
 public class StorageOverlayFeature extends AddonFeature {
-	private final Slider height = add(make().slider("height", Component.literal("Most height"), 80f, 40f, 100f, 0), "General", "It scrolls beyond this");
+	private final Slider height = add(make().slider("height", Component.literal("Max height"), 80f, 40f, 100f, 0).unit("%"), "General", "It scrolls beyond this");
 	private final Slider columns = add(make().slider("columns", Component.literal("Columns"), 3f, 1f, 8f, 0), "General", "Cards per row");
-	private final Toggle showUnseen = add(make().toggle("show_unseen", Component.literal("Unopened pages"), true), "General",
-		"Pages you have not opened yet");
+	private final Toggle showUnseen = add(make().toggle("show_unseen", Component.literal("Unopened pages"), true), "General");
 	/** Whether the storages panel beside the inventory is expanded; its button says it, it has no row on the page. */
 	private final Toggle panelOpen = add(make().toggle("tiles_open", Component.literal("Storages panel open"), true), "General");
 	private final Choice<OverlayBackdrop.Kind> background = add(make().choice("background", Component.literal("Background"), OverlayBackdrop.Kind.BLUR_AND_DIM, OverlayBackdrop.Kind::label), "General");
 	private final Slider backgroundStrength = add(make().slider("background_strength", Component.literal("Strength"), OverlayBackdrop.DEFAULT_STRENGTH_PERCENT, 0f, 100f, 0), "General");
 
 	public StorageOverlayFeature() {
-		super("storage_overlay", "Storage overlay", "The ender chest and all of the backpacks at one look, over the storage menu (/storage).", false);
+		super("storage_overlay", "Storage overlay", "Ender chest and backpacks at one look.", false);
+		pageGroup("Inventory and menus");
 		iconRgb(SystemColors.PURPLE_RGB);
 		iconName("chest");
 		summary("Your ender chest and backpacks at one look");

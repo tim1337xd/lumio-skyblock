@@ -1,6 +1,9 @@
 package dev.tim1337.lumio.skyblock.data;
 
-import dev.tim1337.lumio.api.experimental.util.Debug;
+import dev.tim1337.lumio.api.experimental.debug.DebugHooks;
+import dev.tim1337.lumio.api.experimental.util.Threads;
+import dev.tim1337.lumio.skyblock.SkyBlockDebug;
+
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -9,7 +12,6 @@ import com.google.gson.JsonObject;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.function.Function;
 import java.util.function.LongSupplier;
 
@@ -20,7 +22,7 @@ import java.util.function.LongSupplier;
 public final class ItemMarket {
 	/** What is known of an item, and when it was fetched; 0 for never. */
 	public record Snapshot(double medianDay, double medianWeek, double medianMonth, double soldPerDay, double trendPercent, long fetchedAt) {
-		static final Snapshot EMPTY = new Snapshot(Double.NaN, Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0L);
+		public static final Snapshot EMPTY = new Snapshot(Double.NaN, Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0L);
 
 		/** @return the median over a span of days */
 		public double median(int days) {
@@ -41,11 +43,7 @@ public final class ItemMarket {
 	private static final int MOST_POINTS = 2_000;
 
 	/** The one running in the game. */
-	public static final ItemMarket INSTANCE = new ItemMarket(SkyBlockPrices::fetchCoflnet, Executors.newSingleThreadExecutor(runnable -> {
-		Thread thread = new Thread(runnable, "Lumio item market");
-		thread.setDaemon(true);
-		return thread;
-	}), System::currentTimeMillis);
+	public static final ItemMarket INSTANCE = new ItemMarket(SkyBlockPrices::fetchCoflnet, Threads.daemonExecutor("Lumio item market"), System::currentTimeMillis);
 
 	private final Function<String, JsonElement> source;
 	private final Executor background;
@@ -101,7 +99,9 @@ public final class ItemMarket {
 				known.put(id, snapshot);
 			}
 		} catch (RuntimeException e) {
-			Debug.log("Could not fetch the price history of {}: {}", id, e.toString());
+			if (DebugHooks.ACTIVE) {
+				DebugHooks.log(SkyBlockDebug.PRICES, "Could not fetch the price history of {}: {}", id, e.toString());
+			}
 		}
 	}
 

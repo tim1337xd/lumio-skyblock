@@ -18,10 +18,10 @@ import dev.tim1337.lumio.api.setting.Slider;
 import dev.tim1337.lumio.api.setting.Toggle;
 import static dev.tim1337.lumio.skyblock.SkyBlockAddon.make;
 import dev.tim1337.lumio.api.feature.AddonFeature;
+import dev.tim1337.lumio.api.experimental.draw.WorldLabel;
 import dev.tim1337.lumio.skyblock.SkyBlockFeatures;
 import dev.tim1337.lumio.skyblock.data.SkyBlock;
 import dev.tim1337.lumio.skyblock.misc.CocoonLook;
-import dev.tim1337.lumio.skyblock.world.WorldLabel;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 
@@ -106,10 +106,12 @@ public class BossLabelFeature extends AddonFeature implements StyledFeature {
 	private long lastFrame;
 
 	public BossLabelFeature() {
-		super("boss_label", "Phase at the boss", "A small card right above your own boss, or the one you carry, with its phase, what is left and a thin bar, while you can see it.", true);
+		super("boss_label", "Phase at the boss", "A card above your boss while you see it.", true);
 		iconRgb(SystemColors.PURPLE_RGB);
 		iconName("sword");
 		summary("The phase right above your boss");
+		// the minimal style has no panel and draws in fixed colors
+		theme.visibleWhen(() -> style.get() != CocoonLook.Style.MINIMAL);
 	}
 
 	@Override

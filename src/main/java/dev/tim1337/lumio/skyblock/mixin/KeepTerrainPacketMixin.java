@@ -23,14 +23,14 @@ public abstract class KeepTerrainPacketMixin {
 	private static final String ON_THREAD = "Lnet/minecraft/network/protocol/PacketUtils;ensureRunningOnSameThread(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;Lnet/minecraft/network/PacketProcessor;)V";
 
 	@Inject(method = "handleForgetLevelChunk", at = @At(value = "INVOKE", target = ON_THREAD, shift = At.Shift.AFTER), cancellable = true)
-	private void lumio$keep(ClientboundForgetLevelChunkPacket packet, CallbackInfo ci) {
+	private void evskyblock$keep(ClientboundForgetLevelChunkPacket packet, CallbackInfo ci) {
 		if (SkyBlockAddon.active() && SkyBlockFeatures.KEEP_TERRAIN.keep(level, packet.pos())) {
 			ci.cancel();
 		}
 	}
 
 	@Inject(method = "handleLevelChunkWithLight", at = @At(value = "INVOKE", target = ON_THREAD, shift = At.Shift.AFTER))
-	private void lumio$save(ClientboundLevelChunkWithLightPacket packet, CallbackInfo ci) {
+	private void evskyblock$save(ClientboundLevelChunkWithLightPacket packet, CallbackInfo ci) {
 		if (SkyBlockAddon.active()) {
 			SkyBlockFeatures.KEEP_TERRAIN.onChunk(level, packet);
 		}

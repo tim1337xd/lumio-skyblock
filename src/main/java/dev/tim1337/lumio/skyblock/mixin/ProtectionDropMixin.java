@@ -20,14 +20,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class ProtectionDropMixin {
 	//#if 26.3
 	//$ @Inject(method = "dropItem", at = @At("HEAD"), cancellable = true)
-	//$ private void lumio$holdBackDrop(LocalPlayer player, boolean all, CallbackInfo ci) {
+	//$ private void evskyblock$holdBackDrop(LocalPlayer player, boolean all, CallbackInfo ci) {
 	//$ 	if (SkyBlockFeatures.ITEM_PROTECTION.holdsBackDropKey(player)) {
 	//$ 		ci.cancel();
 	//$ 	}
 	//$ }
 	//#else
 	@Inject(method = "drop(Z)Z", at = @At("HEAD"), cancellable = true)
-	private void lumio$holdBackDrop(boolean all, CallbackInfoReturnable<Boolean> cir) {
+	private void evskyblock$holdBackDrop(boolean all, CallbackInfoReturnable<Boolean> cir) {
 		if (SkyBlockFeatures.ITEM_PROTECTION.holdsBackDropKey((LocalPlayer) (Object) this)) {
 			cir.setReturnValue(false);
 		}

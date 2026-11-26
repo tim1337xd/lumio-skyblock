@@ -152,7 +152,8 @@ public enum ProfitActivity {
 		return id.contains("PICKAXE") || id.contains("DRILL") || id.contains("GAUNTLET") || id.contains("PICKONIMBUS");
 	}
 
-	private static boolean farmingTool(String id) {
+	/** @return whether a SkyBlock item id is a farming tool: hoes, dicers, knives, the fungi cutter, the coco chopper, the rookie axe */
+	public static boolean farmingTool(String id) {
 		return id.contains("HOE") || id.contains("DICER") || id.contains("KNIFE") || id.contains("FUNGI_CUTTER") || id.contains("CACTUS_KNIFE")
 			|| id.contains("COCO_CHOPPER") || id.contains("AXE") && id.contains("ROOKIE");
 	}

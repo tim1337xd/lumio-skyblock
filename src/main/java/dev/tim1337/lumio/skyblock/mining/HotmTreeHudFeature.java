@@ -21,8 +21,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 
-import java.util.List;
-
 /**
  * Shows the selected Heart of the Mountain tree as a small pill: "HotM  Gemstone". The tree is read by {@link HotmTree} from /hotm, the loadouts
  * and chat, and persisted between sessions.
@@ -42,7 +40,8 @@ public class HotmTreeHudFeature extends AddonPanel {
 	private static final int[] TILE = {0xFF5EE0D0, 0xFF0F9E8F};
 
 	public HotmTreeHudFeature() {
-		super("hotm_tree_hud", "HotM tree", "The selected Heart of the Mountain tree, read from /hotm, the loadouts and the chat.", true, Anchor.LEFT, false, 200f, 300f);
+		super("hotm_tree_hud", "HotM tree", "Your selected Heart of the Mountain tree.", true, Anchor.LEFT, false, 200f, 300f);
+		pageGroup("Panels");
 		iconRgb(SystemColors.TEAL_RGB);
 		iconName("tree");
 		summary("Your selected Heart of the Mountain tree");

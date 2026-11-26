@@ -36,8 +36,20 @@ public final class PartyList {
 	private static final Pattern LIST_HEADER = Pattern.compile("^Party Members \\(\\d{1,3}\\)$");
 	private static final Pattern LIST_LINE = Pattern.compile("^Party (?:Leader|Moderators|Members): (.+)$");
 	private static final Pattern ANY_NAME = Pattern.compile(NAME);
+	private static final Pattern PROMOTED_LEADER = Pattern.compile("^" + NAME + " has promoted " + NAME + " to Party Leader$");
+	private static final Pattern LEADER_LINE = Pattern.compile("^Party Leader: " + NAME);
 
 	private final Set<String> members = new LinkedHashSet<>();
+	/** Who leads the party, or "" while not known; the one who left last, for a re-invite. */
+	private String leader = "";
+	private String lastLeft = "";
+	/** Told who left the party, was removed or kicked for being offline. */
+	private java.util.function.Consumer<String> onLeft;
+
+	/** Sets who hears of a member leaving the party; one listener, set while the add-on starts. */
+	public void onLeft(java.util.function.Consumer<String> listener) {
+		onLeft = listener;
+	}
 
 	/** Reads a server message, without its colors. */
 	public void onMessage(Component message) {
@@ -50,22 +62,41 @@ public final class PartyList {
 			return;
 		}
 		Matcher matcher;
-		if ((matcher = JOINED.matcher(line)).matches() || (matcher = JOINED_THEIRS.matcher(line)).matches()) {
+		if ((matcher = JOINED_THEIRS.matcher(line)).matches()) {
 			add(matcher.group(1));
+			leader = matcher.group(1);
+		} else if ((matcher = JOINED.matcher(line)).matches()) {
+			add(matcher.group(1));
+			// someone joined a party nobody else was known to lead: the player's own
+			if (leader.isEmpty()) {
+				leader = self();
+			}
 		} else if ((matcher = PARTYING_WITH.matcher(line)).matches()) {
 			addAll(matcher.group(1));
 		} else if ((matcher = LEFT.matcher(line)).matches() || (matcher = KICKED_OFFLINE.matcher(line)).matches()) {
 			String gone = matcher.group(1);
 			members.removeIf(member -> member.equalsIgnoreCase(gone));
+			lastLeft = gone;
+			if (onLeft != null) {
+				onLeft.accept(gone);
+			}
 		} else if ((matcher = TRANSFERRED.matcher(line)).matches()) {
 			add(matcher.group(1));
 			add(matcher.group(2));
+			leader = matcher.group(1);
+		} else if ((matcher = PROMOTED_LEADER.matcher(line)).matches()) {
+			leader = matcher.group(2);
 		} else if (DISBANDED.matcher(line).matches()) {
 			members.clear();
+			leader = "";
 		} else if (LIST_HEADER.matcher(line).matches()) {
 			members.clear();
 		} else if ((matcher = LIST_LINE.matcher(line)).matches()) {
 			addAll(matcher.group(1));
+			Matcher lead = LEADER_LINE.matcher(line);
+			if (lead.find()) {
+				leader = lead.group(1);
+			}
 		}
 	}
 
@@ -88,8 +119,30 @@ public final class PartyList {
 		return new ArrayList<>(members);
 	}
 
+	/** @return who leads the party, or "" while not known */
+	public String leader() {
+		return leader;
+	}
+
+	/** @return the one who left the party last, or "" */
+	public String lastLeft() {
+		return lastLeft;
+	}
+
+	/** @return whether the player leads the party, as far as the server told */
+	public boolean selfLeads() {
+		return !leader.isEmpty() && leader.equalsIgnoreCase(self());
+	}
+
+	/** @return the player's own name, or "" outside a world */
+	private static String self() {
+		var client = net.minecraft.client.Minecraft.getInstance();
+		return client == null || client.player == null ? "" : client.player.getName().getString();
+	}
+
 	/** Forgets the party, for a new server. */
 	public void clear() {
 		members.clear();
+		leader = "";
 	}
 }

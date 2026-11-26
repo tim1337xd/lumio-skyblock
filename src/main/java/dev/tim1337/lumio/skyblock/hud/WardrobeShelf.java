@@ -2,6 +2,7 @@ package dev.tim1337.lumio.skyblock.hud;
 
 import dev.tim1337.lumio.api.experimental.util.Logs;
 import dev.tim1337.lumio.api.experimental.util.ModFiles;
+import dev.tim1337.lumio.api.experimental.util.Threads;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -12,15 +13,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /** Holds the wardrobe of the profile being played, a file for each profile, and reads and writes those files away from the game's thread. */
 final class WardrobeShelf {
-	private static final ExecutorService FILES = Executors.newSingleThreadExecutor(runnable -> {
-		Thread thread = new Thread(runnable, "Lumio wardrobe");
-		thread.setDaemon(true);
-		return thread;
-	});
+	private static final ExecutorService FILES = Threads.daemonExecutor("Lumio wardrobe");
 
 	private static WardrobeBook book;
 	private static String bookProfile;

@@ -3,6 +3,7 @@ package dev.tim1337.lumio.skyblock.chat;
 import dev.tim1337.lumio.api.experimental.util.Logs;
 import dev.tim1337.lumio.api.experimental.util.ModFiles;
 import dev.tim1337.lumio.api.experimental.util.TextColors;
+import dev.tim1337.lumio.api.experimental.util.Threads;
 import dev.tim1337.lumio.skyblock.SkyBlockFeatures;
 import dev.tim1337.lumio.skyblock.data.SocialNames;
 
@@ -34,7 +35,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
  * What the command suggestions learn from what the game shows: subcommands from help and usage messages right after the player ran that command, warps from the Fast Travel menu, how often
@@ -49,11 +49,7 @@ public final class LearnedCommands {
 	private static final int MOST_LEARNED = 256;
 	private static final String FAST_TRAVEL = "Fast Travel";
 
-	private static final ExecutorService WORKER = Executors.newSingleThreadExecutor(runnable -> {
-		Thread thread = new Thread(runnable, "Lumio learned commands");
-		thread.setDaemon(true);
-		return thread;
-	});
+	private static final ExecutorService WORKER = Threads.daemonExecutor("Lumio learned commands");
 
 	private static final Map<String, WarpPicker.Warp> WARPS = new LinkedHashMap<>();
 	private static final Map<String, Integer> WARP_USES = new HashMap<>();

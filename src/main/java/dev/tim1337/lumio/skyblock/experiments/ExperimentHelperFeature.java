@@ -2,21 +2,24 @@ package dev.tim1337.lumio.skyblock.experiments;
 
 import static dev.tim1337.lumio.skyblock.SkyBlockAddon.make;
 
+import dev.tim1337.lumio.api.feature.KeyPlace;
 import dev.tim1337.lumio.api.LumioApi;
 import dev.tim1337.lumio.api.MainSettings;
 import dev.tim1337.lumio.api.TooltipLine;
 import dev.tim1337.lumio.api.draw.Canvas;
+import dev.tim1337.lumio.api.experimental.debug.DebugHooks;
 import dev.tim1337.lumio.api.experimental.draw.Draw;
 import dev.tim1337.lumio.api.experimental.draw.PanelKit;
 import dev.tim1337.lumio.api.experimental.draw.SystemColors;
 import dev.tim1337.lumio.api.experimental.draw.TextScale;
 import dev.tim1337.lumio.api.experimental.ui.SlotLayer;
 import dev.tim1337.lumio.api.experimental.ui.Toasts;
-import dev.tim1337.lumio.api.experimental.util.Debug;
 import dev.tim1337.lumio.api.experimental.util.ScreenInput;
 import dev.tim1337.lumio.api.experimental.util.TextColors;
 import dev.tim1337.lumio.api.feature.AddonFeature;
 import dev.tim1337.lumio.api.setting.Toggle;
+import dev.tim1337.lumio.skyblock.dungeon.f7.WrongClickKey;
+import dev.tim1337.lumio.skyblock.SkyBlockDebug;
 import dev.tim1337.lumio.skyblock.data.PetTracker;
 import dev.tim1337.lumio.skyblock.data.SkyBlock;
 import dev.tim1337.lumio.skyblock.data.SkyBlockArea;
@@ -67,7 +70,6 @@ public class ExperimentHelperFeature extends AddonFeature {
 	private static final String ENCHANTED_BOOK_NAME = "Enchanted Book";
 	/** The lore line of a book with its enchant. */
 	private static final int BOOK_NAME_LINE = 2;
-	private static final int DEBUG_LINE = 9;
 	/** The info under the inventory: its lines, the room around them, and how far they stand off the menu. */
 	private static final int INFO_LINES = 4;
 	private static final int INFO_LINE = 9;
@@ -94,12 +96,10 @@ public class ExperimentHelperFeature extends AddonFeature {
 	private final Toggle keepItems = add(make().toggle("keep_items", Component.literal("Keep flipped items visible"), true), "General");
 	private final Toggle highlightPairs = add(make().toggle("highlight_pairs", Component.literal("Highlight pairs"), true), "General");
 	private final Toggle nextClicks = add(make().toggle("next_clicks", Component.literal("Next-click colors"), false), "General");
-	private final Toggle blockWrongClicks = add(make().toggle("block_wrong_clicks", Component.literal("Block wrong clicks"), false), "General", "Chronomatron and Ultrasequencer, on your island. Hold Shift to click anyway");
+	private final Toggle blockWrongClicks = add(make().toggle("block_wrong_clicks", Component.literal("Block wrong clicks"), false), "General", "Your island; its key clicks anyway");
 	private final Toggle info = add(make().toggle("info", Component.literal("Info under the inventory"), false), "General");
-	private final Toggle alerts = add(make().toggle("alerts", Component.literal("Alerts"), true), "General", "An ULTRA-RARE book, and the most clicks reached");
-	private final Toggle debugOverlay = add(make().toggle("debug_overlay", Component.literal("Debug overlay"), false), "Advanced",
-		"The phase, round, known order and your progress of Chronomatron and Ultrasequencer");
-	private final Toggle guardian = add(make().toggle("guardian", Component.literal("Guardian reminder"), false), "General", "When you open the table without a Guardian pet");
+	private final Toggle alerts = add(make().toggle("alerts", Component.literal("Alerts"), true), "General", "ULTRA-RARE books and the most clicks");
+	private final Toggle guardian = add(make().toggle("guardian", Component.literal("Guardian reminder"), false), "General", "Opening the table without one");
 
 	private final SuperpairsBoard<ItemStack> board = new SuperpairsBoard<>();
 	private final SequenceMemory sequence = new SequenceMemory();
@@ -133,7 +133,8 @@ public class ExperimentHelperFeature extends AddonFeature {
 	private long flashUntil;
 
 	public ExperimentHelperFeature() {
-		super("experiments", "Experimentation table", "Marks what the game already showed you at the Experimentation Table, and tells you of what matters.", true);
+		super("experiments", "Experimentation table", "Marks what the table already showed you.", true);
+		pageGroup("Helpers");
 		iconRgb(SystemColors.PURPLE_RGB);
 		iconName("gem");
 		summary("Remembers what the table has shown you");
@@ -209,8 +210,9 @@ public class ExperimentHelperFeature extends AddonFeature {
 		profit = tracker;
 	}
 
-	/** Draws over the slots of a game's menu. */
+	/** Draws over the slots of a game's menu; lists the key that lets every click through while held (the F7 solvers' one) in this sheet too. */
 	public void register() {
+		addKey(WrongClickKey.key(), KeyPlace.SCREENS);
 		ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {
 			if (screen instanceof ContainerScreen chest && ExperimentFormats.menu(plain(chest.getTitle())) != null) {
 				ScreenMouseEvents.allowMouseClick(screen).register((shown, event) -> !clickedHide(chest, event.x(), event.y()) && !clickedSettings(chest, event));
@@ -277,7 +279,9 @@ public class ExperimentHelperFeature extends AddonFeature {
 			ultraRareSeen = false;
 			mostClicks.runStarted(now, Util.getMillis());
 			roundLogged = -1;
-			Debug.log("Experiments: {} ({}) started, rounds for the most clicks {}", now.game(), now.tier(), mostClicks.rounds());
+			if (DebugHooks.ACTIVE) {
+				DebugHooks.log(SkyBlockDebug.EXPERIMENTS, "Experiments: {} ({}) started, rounds for the most clicks {}", now.game(), now.tier(), mostClicks.rounds());
+			}
 			lastClicked = -1;
 			clicksLeft = -1;
 			gameOver = false;
@@ -398,7 +402,7 @@ public class ExperimentHelperFeature extends AddonFeature {
 		ExperimentFormats.Phase phase = ExperimentFormats.phase(plain(slots.get(ExperimentFormats.PHASE_SLOT).getItem().getHoverName()));
 		int round = ExperimentFormats.round(plain(slots.get(ExperimentFormats.TOP_STATUS_SLOT).getItem().getHoverName()));
 		Map<Integer, Integer> numbers = new HashMap<>();
-		StringBuilder read = Debug.on() ? new StringBuilder() : null;
+		StringBuilder read = DebugHooks.ACTIVE ? new StringBuilder() : null;
 		for (int i = 0; i < ExperimentFormats.PHASE_SLOT && i < slots.size(); i++) {
 			if (i == ExperimentFormats.TOP_STATUS_SLOT) {
 				continue;
@@ -417,7 +421,9 @@ public class ExperimentHelperFeature extends AddonFeature {
 		}
 		sequence.seeUltrasequencer(phase, numbers);
 		if (read != null) {
-			Debug.log("Experiments: Ultrasequencer read: round {}, phase {}, slots{}; order {}", round, phase, read, sequence.known());
+			if (DebugHooks.ACTIVE) {
+				DebugHooks.log(SkyBlockDebug.EXPERIMENTS, "Experiments: Ultrasequencer read: round {}, phase {}, slots{}; order {}", round, phase, read, sequence.known());
+			}
 		}
 		// the round the game shows; without it, the steps of the order
 		int counted = round > 0 ? round : sequence.length();
@@ -429,13 +435,17 @@ public class ExperimentHelperFeature extends AddonFeature {
 	private void logRound(int shown, int counted) {
 		if (counted != roundLogged) {
 			roundLogged = counted;
-			Debug.log("Experiments: {} round {} (shown {}), rounds for the most clicks {}", menu.game(), counted, shown, mostClicks.rounds());
+			if (DebugHooks.ACTIVE) {
+				DebugHooks.log(SkyBlockDebug.EXPERIMENTS, "Experiments: {} round {} (shown {}), rounds for the most clicks {}", menu.game(), counted, shown, mostClicks.rounds());
+			}
 		}
 	}
 
 	private void tellMostClicks(int round) {
 		if (mostClicks.reached(round)) {
-			Debug.log("Experiments: most clicks reached at round {}: {}", round, mostClicks.text());
+			if (DebugHooks.ACTIVE) {
+				DebugHooks.log(SkyBlockDebug.EXPERIMENTS, "Experiments: most clicks reached at round {}: {}", round, mostClicks.text());
+			}
 			if (alerts.get()) {
 				mostClicksAlerts++;
 				Toasts.info("Most clicks reached", mostClicks.text());
@@ -472,8 +482,10 @@ public class ExperimentHelperFeature extends AddonFeature {
 			return;
 		}
 		MostClicks.Tier tier = mostClicks.picked(game, loreOf(slot.getItem()), Util.getMillis());
-		Debug.log("Experiments: {} stakes, clicked '{}': line '{}', rounds {}, practice {}, locked {}", game, plain(slot.getItem().getHoverName()), tier.line(),
-			tier.rounds(), tier.practice(), tier.locked());
+		if (DebugHooks.ACTIVE) {
+			DebugHooks.log(SkyBlockDebug.EXPERIMENTS, "Experiments: {} stakes, clicked '{}': line '{}', rounds {}, practice {}, locked {}", game, plain(slot.getItem().getHoverName()), tier.line(),
+				tier.rounds(), tier.practice(), tier.locked());
+		}
 	}
 
 	private boolean clickInSequence(ContainerScreen chest, Slot slot, int button) {
@@ -489,14 +501,18 @@ public class ExperimentHelperFeature extends AddonFeature {
 		boolean stepsLeft = colors ? sequence.colorStepsLeft() : sequence.slotStepsLeft();
 		String expected = colors ? sequence.nextColor(0) : String.valueOf(sequence.nextSlot(0));
 		// a click on an empty slot is no step of the game either way
-		if (!slot.getItem().isEmpty() && WrongClickGuard.holdsBack(blockWrongClicks.get(), onPrivateIsland(), Minecraft.getInstance().hasShiftDown(), stepsLeft, right)) {
-			Debug.log("Experiments: click on slot {} held back, expected {}", slot.index, expected);
+		if (!slot.getItem().isEmpty() && WrongClickGuard.holdsBack(blockWrongClicks.get(), onPrivateIsland(), WrongClickKey.holding(), stepsLeft, right)) {
+			if (DebugHooks.ACTIVE) {
+				DebugHooks.log(SkyBlockDebug.EXPERIMENTS, "Experiments: click on slot {} held back, expected {}", slot.index, expected);
+			}
 			heldBack(slot);
 			return true;
 		}
 		// the expected step counts at once, without waiting for the server, so the next one lights up at once
 		boolean accepted = colors ? sequence.clickedColor(color) : sequence.clickedSlot(slot.index);
-		Debug.log("Experiments: click on slot {} ({}), expected {}, {}", slot.index, color, expected, accepted ? "accepted" : "not the expected step");
+		if (DebugHooks.ACTIVE) {
+			DebugHooks.log(SkyBlockDebug.EXPERIMENTS, "Experiments: click on slot {} ({}), expected {}, {}", slot.index, color, expected, accepted ? "accepted" : "not the expected step");
+		}
 		if (accepted && (button == ScreenInput.LEFT || button == ScreenInput.RIGHT)) {
 			// the same click, as a middle click (pick block): the game takes it as a click, and the item never lands on the cursor, so a click in
 			// lag leaves no ghost item and shifts nothing (the idea is SkyHanni's)
@@ -554,12 +570,10 @@ public class ExperimentHelperFeature extends AddonFeature {
 			case CHRONOMATRON -> {
 				drawChronomatron(ui, chest, left, top);
 				drawWrongFlash(ui, chest, left, top);
-				drawDebug(ui, left, top + access.evskyblock$height() + INFO_GAP);
 			}
 			case ULTRASEQUENCER -> {
 				drawUltrasequencer(ui, chest, left, top);
 				drawWrongFlash(ui, chest, left, top);
-				drawDebug(ui, left, top + access.evskyblock$height() + INFO_GAP);
 			}
 		}
 	}
@@ -598,14 +612,13 @@ public class ExperimentHelperFeature extends AddonFeature {
 		}
 	}
 
-	/** The state of the memory games, for a screenshot when the marks are wrong: phase, round, known order, progress. */
-	private void drawDebug(Canvas ui, int x, int y) {
-		if (!debugOverlay.get()) {
-			return;
-		}
-		ui.textAtScaled("Phase " + sequence.phase() + " \u00b7 round " + sequence.round(), x, y, TextScale.SMALL, WHITE);
-		ui.textAtScaled("Known (" + sequence.length() + "): " + sequence.known(), x, y + DEBUG_LINE, TextScale.SMALL, WHITE);
-		ui.textAtScaled("Progress " + sequence.done() + ", confirmed " + sequence.confirmed(), x, y + 2 * DEBUG_LINE, TextScale.SMALL, WHITE);
+	/**
+	 * The state of the memory games, for a debug tool's view ("skyblock.experiments") when the marks are wrong: phase, round, known order,
+	 * progress. Only reads.
+	 */
+	public List<String> debugLines() {
+		return List.of("Phase " + sequence.phase() + " \u00b7 round " + sequence.round(), "Known (" + sequence.length() + "): " + sequence.known(),
+			"Progress " + sequence.done() + ", confirmed " + sequence.confirmed());
 	}
 
 	/** A small plain text under the menu, or beside it where the screen has no room below, with a word at its side that turns it off. */
@@ -751,6 +764,8 @@ public class ExperimentHelperFeature extends AddonFeature {
 
 	/** Logs a form that was not understood, for the player to send. */
 	static void unknown(String what, Object line) {
-		Debug.log("Experiments: {} not understood: {}", what, line);
+		if (DebugHooks.ACTIVE) {
+			DebugHooks.log(SkyBlockDebug.EXPERIMENTS, "Experiments: {} not understood: {}", what, line);
+		}
 	}
 }

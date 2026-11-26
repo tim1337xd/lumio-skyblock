@@ -1,9 +1,11 @@
 package dev.tim1337.lumio.skyblock.dragons;
 
 import dev.tim1337.lumio.api.LumioApi;
-import dev.tim1337.lumio.api.experimental.util.Debug;
+import dev.tim1337.lumio.api.experimental.debug.DebugHooks;
 import dev.tim1337.lumio.api.experimental.util.TextColors;
 import dev.tim1337.lumio.api.setting.Toggle;
+import dev.tim1337.lumio.skyblock.SkyBlockDebug;
+import dev.tim1337.lumio.skyblock.data.CountedGains;
 import dev.tim1337.lumio.skyblock.data.ItemGains;
 import dev.tim1337.lumio.skyblock.data.ProfitActivity;
 import dev.tim1337.lumio.skyblock.data.ProfitTracker;
@@ -37,6 +39,8 @@ public final class DragonProfit {
 	private final Toggle showLast;
 	private final Deque<DragonRecord> last = new ArrayDeque<>();
 	private final DragonFight fight = new DragonFight();
+	/** Items picked up that this tracker counted lately: a gain taken back (crafted, compacted, moved) leaves it only as far as it was counted here. */
+	private final CountedGains countedLately = new CountedGains();
 	private String kind;
 	private long downAt;
 	private double topDamage;
@@ -45,10 +49,17 @@ public final class DragonProfit {
 
 	public DragonProfit(ProfitHudFeature panel) {
 		this.panel = panel;
-		eyesAsCost = panel.ownToggle("eyes_cost", "Eyes as a cost", true, "Summoning Eyes you placed, at their current price");
-		countLeeched = panel.ownToggle("count_leeched", "Count dragons I didn't place eyes for", false, "On: if you were in the Nest and the fight lists you");
+		eyesAsCost = panel.ownToggle("eyes_cost", "Eyes as a cost", true, "Eyes you placed, at today's price");
+		countLeeched = panel.ownToggle("count_leeched", "Leeched dragons too", false, "If the fight lists you");
 		showLast = panel.ownToggle("show_last", "Show last dragons", true, "Kind, place, weight and what dropped");
-		ItemGains.listen(this::gained);
+		ItemGains.listen((id, name, count, sacks) -> {
+			if (gained(id, name, count, sacks)) {
+				countedLately.counted(id, count, System.currentTimeMillis());
+			}
+		});
+		// a drop the server announced reaches the trackers this way, once
+		ItemGains.listenDrops((id, name, count, fromChat) -> gained(id, name, count, false));
+		ItemGains.listenTaken((id, name, count, sacks) -> panel.tracker().remove(id, countedLately.takeBack(id, count, System.currentTimeMillis())));
 	}
 
 	/** @return the last dragons, the newest first */
@@ -125,7 +136,9 @@ public final class DragonProfit {
 			}
 		}
 		if (line.startsWith(DragonFormats.SIGN) && !line.contains("placed a Summoning Eye") && !line.contains("Dragon Egg")) {
-			Debug.log("Dragons: a line not understood: {}", line);
+			if (DebugHooks.ACTIVE) {
+				DebugHooks.log(SkyBlockDebug.PROFIT, "Dragons: a line not understood: {}", line);
+			}
 		}
 	}
 
@@ -171,14 +184,17 @@ public final class DragonProfit {
 		fight.finished();
 	}
 
-	private void gained(String id, String name, long count, boolean sacks) {
+	/** @return whether the item was counted into the tracker */
+	private boolean gained(String id, String name, long count, boolean sacks) {
 		if (sacks || collecting == null || System.currentTimeMillis() > collectingUntil || !panel.isEnabled() || EYE_ID.equals(id)) {
-			return;
+			return false;
 		}
 		collecting.drops.add(count > 1 ? name + " ×" + count : name);
 		if (collecting.counted) {
 			panel.tracker().add(id, name, count);
+			return true;
 		}
+		return false;
 	}
 
 	/** @return the tiles under the panel's list, from a time range's numbers */

@@ -43,15 +43,6 @@ class ExactPricesTest {
 	}
 
 	@Test
-	void whatItIsPricedBy() {
-		assertEquals("HYPERION", ExactItem.pricedId("HYPERION", json(UPGRADED)));
-		assertEquals("PET_GOLDEN_DRAGON", ExactItem.pricedId("PET", json(PET)));
-		assertEquals("ENCHANTMENT_ULTIMATE_WISE_5", ExactItem.pricedId("ENCHANTED_BOOK", json("{\"id\":\"ENCHANTED_BOOK\",\"enchantments\":{\"ultimate_wise\":5}}")));
-		assertEquals("ENCHANTED_BOOK", ExactItem.pricedId("ENCHANTED_BOOK", json("{\"id\":\"ENCHANTED_BOOK\",\"enchantments\":{\"ultimate_wise\":5,\"sharpness\":6}}")), "two enchants are one item");
-		assertEquals("ENCHANTED_DIAMOND", ExactItem.pricedId("ENCHANTED_DIAMOND", json("{\"id\":\"ENCHANTED_DIAMOND\"}")));
-	}
-
-	@Test
 	void onlyTheItemsOwnDataIsSent() {
 		JsonObject item = ExactItem.request("HYPERION", "Heroic Hyperion", json(UPGRADED));
 		assertEquals(Set.of("count", "tag", "itemName", "enchantments", "extraAttributes"), item.keySet());

@@ -35,7 +35,9 @@ public enum Activity {
 	RIFTSTALKER("Riftstalker Bloodfiend", "Slayer", List.of()),
 	FARMING("Garden", "Farming", List.of()),
 	EXPERIMENTS("Experimentation Table", "Experiments", List.of()),
-	DRAGONS("Dragon fight", "Dragons", List.of());
+	DRAGONS("Dragon fight", "Dragons", List.of()),
+	DUNGEON_CLEAR("Dungeon, clearing", "Dungeons", List.of()),
+	DUNGEON_BOSS("Dungeon, boss", "Dungeons", List.of());
 
 	/** The choices within an activity that change what the HUD shows. */
 	private static final class Options {
@@ -88,6 +90,7 @@ public enum Activity {
 	private static final Set<Activity> ALL_SLAYERS = EnumSet.of(SLAYER, REVENANT, TARANTULA, SVEN, VOIDGLOOM, INFERNO, RIFTSTALKER);
 	private static final Set<Activity> ALL_MINING = EnumSet.of(DWARVEN_MINES, CRYSTAL_HOLLOWS, MINESHAFT);
 	private static final Set<Activity> ALL_FISHING = EnumSet.of(FISHING, LAVA_FISHING);
+	private static final Set<Activity> ALL_DUNGEON = EnumSet.of(DUNGEON_CLEAR, DUNGEON_BOSS);
 
 	/**
 	 * The ids of the main mod's features that are on screen whatever the player does: the HUD, the music, the chat. By id, since the add-on
@@ -114,10 +117,13 @@ public enum Activity {
 			map.put(SkyBlockFeatures.LAST_DRAGONS.id(), EnumSet.of(DRAGONS));
 			map.put(SkyBlockFeatures.GRAPPLING_HOOK.id(), EnumSet.of(ALWAYS));
 			map.put(SkyBlockFeatures.SEA_CREATURES.id(), ALL_FISHING);
+			map.put(SkyBlockFeatures.BITE_TIMER.id(), ALL_FISHING);
 			map.put(SkyBlockFeatures.FISHING_PROFIT.id(), ALL_FISHING);
 			map.put(SkyBlockFeatures.MINING_PROFIT.id(), ALL_MINING);
 			map.put(SkyBlockFeatures.MINING_ABILITY.id(), ALL_MINING);
 			map.put(SkyBlockFeatures.HOTM_TREE.id(), ALL_MINING);
+			map.put(SkyBlockFeatures.POWDER_HELPER.id(), ALL_MINING);
+			map.put(SkyBlockFeatures.HOLLOWS_MAP.id(), EnumSet.of(CRYSTAL_HOLLOWS));
 			map.put(SkyBlockFeatures.TICK_GLIDE.id(), ALL_MINING);
 			map.put(SkyBlockFeatures.COMMISSIONS.id(), EnumSet.of(DWARVEN_MINES, CRYSTAL_HOLLOWS));
 			map.put(SkyBlockFeatures.MINESHAFT_PITY.id(), EnumSet.of(DWARVEN_MINES, MINESHAFT));
@@ -130,10 +136,20 @@ public enum Activity {
 			map.put(SkyBlockFeatures.TARANTULA_HELPER.id(), ALL_SLAYERS);
 			map.put(SkyBlockFeatures.SLAYER_PROFIT.id(), ALL_SLAYERS);
 			map.put(SkyBlockFeatures.PESTS.id(), EnumSet.of(FARMING));
+			map.put(SkyBlockFeatures.PEST_HIGHLIGHT.id(), EnumSet.of(FARMING));
 			map.put(SkyBlockFeatures.MOUSE_LOCK.id(), EnumSet.of(FARMING));
 			map.put(SkyBlockFeatures.VISITORS.id(), EnumSet.of(FARMING));
 			map.put(SkyBlockFeatures.FARMING_HUD.id(), EnumSet.of(FARMING));
 			map.put(SkyBlockFeatures.FARMING_PROFIT.id(), EnumSet.of(FARMING));
+			map.put(SkyBlockFeatures.DUNGEON_MAP.id(), EnumSet.of(DUNGEON_CLEAR));
+			map.put(SkyBlockFeatures.DUNGEON_BLOOD_CAMP.id(), EnumSet.of(DUNGEON_CLEAR));
+			map.put(SkyBlockFeatures.DUNGEON_SCORE.id(), ALL_DUNGEON);
+			map.put(SkyBlockFeatures.DUNGEON_SPLITS.id(), ALL_DUNGEON);
+			map.put(SkyBlockFeatures.DUNGEON_INVINCIBILITY.id(), ALL_DUNGEON);
+			map.put(SkyBlockFeatures.DUNGEON_THORN.id(), EnumSet.of(DUNGEON_BOSS));
+			map.put(SkyBlockFeatures.DUNGEON_LIVID.id(), EnumSet.of(DUNGEON_BOSS));
+			map.put(SkyBlockFeatures.DUNGEON_F7.id(), EnumSet.of(DUNGEON_BOSS));
+			map.put(SkyBlockFeatures.DUNGEON_TERMINAL_STATUS.id(), EnumSet.of(DUNGEON_BOSS));
 			tags = map;
 		}
 		return tags;
@@ -187,6 +203,7 @@ public enum Activity {
 		ISLANDS.put("Jerry's Workshop", List.of(FISHING));
 		ISLANDS.put("Galatea", List.of(FISHING));
 		ISLANDS.put("Private Island", List.of(FISHING));
+		ISLANDS.put("Lotus Atoll", List.of(FISHING));
 	}
 
 	/** @return the activities of an island, in the order the home page shows them; empty for islands without any */

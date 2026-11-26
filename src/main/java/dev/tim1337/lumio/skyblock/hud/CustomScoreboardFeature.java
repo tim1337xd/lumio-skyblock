@@ -1,6 +1,7 @@
 package dev.tim1337.lumio.skyblock.hud;
 
-import dev.tim1337.lumio.api.experimental.util.Debug;
+import dev.tim1337.lumio.api.experimental.debug.DebugHooks;
+import dev.tim1337.lumio.skyblock.SkyBlockDebug;
 import dev.tim1337.lumio.api.experimental.util.ScoreLines;
 import dev.tim1337.lumio.api.feature.AddonFeature;
 import dev.tim1337.lumio.api.setting.OrderedChoice;
@@ -60,7 +61,7 @@ public class CustomScoreboardFeature extends AddonFeature {
 		"purse", "bank", "bits", "motes", "copper", "heat", "north_stars", "powder", "space",
 		"slayer", "objective", "other")), "Content", "Switch lines on or off, drag to order");
 	private final TextInput titleText = add(make().text("title_text", Component.literal("Title"), "", false), "Text",
-		"Empty: as the server writes it. & for colors, such as &e&lSKYBLOCK");
+		"Empty: the server's. & for colors");
 	private final TextInput footerText = add(make().text("footer_text", Component.literal("Footer"), "&ewww.hypixel.net", false), "Text",
 		"The line of the footer, & for colors");
 
@@ -73,10 +74,12 @@ public class CustomScoreboardFeature extends AddonFeature {
 	private static final Pattern TIME = Pattern.compile("^\\d{1,2}:\\d{2}\\s?(?:am|pm)", Pattern.CASE_INSENSITIVE);
 
 	public CustomScoreboardFeature() {
-		super("custom_scoreboard", "Custom scoreboard", "The scoreboard of SkyBlock with the lines you choose, in your order. Its look is set in the scoreboard panel.", false);
+		super("custom_scoreboard", "Custom scoreboard", "SkyBlock's scoreboard, your lines.", false);
+		pageGroup("On screen");
 		iconRgb(SystemColors.GREEN_RGB);
 		iconName("list_check");
-		summary("The SkyBlock scoreboard with the lines you choose");
+		summary("SkyBlock's scoreboard, your lines");
+		footerText.visibleWhen(() -> parts.enabledInOrder().contains("footer"));
 		addResetButton();
 	}
 
@@ -186,9 +189,9 @@ public class CustomScoreboardFeature extends AddonFeature {
 
 	/** Under the debug switch, once per change: what the location's line is really made of, for when its symbol is not found. */
 	private void logLocation(Component line, String raw) {
-		if (Debug.on() && !raw.equals(loggedLocation)) {
+		if (DebugHooks.ACTIVE && !raw.equals(loggedLocation)) {
 			loggedLocation = raw;
-			Debug.log("Location line, symbol at {}: {}", ScoreLines.locationStart(raw), ScoreLines.describe(line));
+			DebugHooks.log(SkyBlockDebug.PANELS, "Location line, symbol at {}: {}", ScoreLines.locationStart(raw), ScoreLines.describe(line));
 		}
 	}
 

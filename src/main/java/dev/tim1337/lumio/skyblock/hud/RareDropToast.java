@@ -1,6 +1,7 @@
 package dev.tim1337.lumio.skyblock.hud;
 
 import dev.tim1337.lumio.api.experimental.draw.Radius;
+import dev.tim1337.lumio.api.LumioChat;
 import dev.tim1337.lumio.api.MainSettings;
 import dev.tim1337.lumio.api.draw.Canvas;
 import dev.tim1337.lumio.api.experimental.draw.Draw;
@@ -18,14 +19,11 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.Style;
-import net.minecraft.network.chat.TextColor;
 
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Deque;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * The drop toast: a note at the top of the screen when the server announces a valuable rare drop ("VERY RARE DROP! (Mana Steal I) (+437% ✯ Magic
@@ -107,7 +105,7 @@ public final class RareDropToast {
 		if (drop == null) {
 			return;
 		}
-		int color = colorOf(message, drop.name());
+		int color = DropMessage.nameColor(message, drop.name(), RARE_PINK);
 		receive(drop, priceOf(drop, color) * drop.amount(), color);
 	}
 
@@ -125,9 +123,37 @@ public final class RareDropToast {
 	/** Queues a drop if the drop toasts want it: its value is known and at least the chosen amount. */
 	public static void receive(DropMessage drop, double value, int color) {
 		var toasts = SkyBlockFeatures.DROP_TOASTS;
-		if (toasts != null && toasts.wants(value)) {
+		if (toasts == null || !toasts.wants(value)) {
+			return;
+		}
+		ShowAs.Chosen shows = toasts.display(value);
+		if (shows.popup()) {
 			queue(drop, value, color);
 		}
+		String detail = DropToastFeature.titleDetail(valueText(value), detailOf(drop));
+		if (shows.title()) {
+			// the item's name in its rarity color, its value and magic find under it; it waits its turn behind another of Lumio's titles
+			TitleQueue.show(Component.literal(itemOf(drop)).withColor(color & RGB), Component.literal(detail), toasts.titleMillis(), false);
+		}
+		if (shows.chat()) {
+			LumioChat.info(Component.literal(itemOf(drop)).withColor(color & RGB).append(Component.literal(" · " + detail).withColor(CHAT_DETAIL_RGB)));
+		}
+		if (shows.soundAtOnce()) {
+			// the pop-up plays the sound when its turn comes; without it the sound comes now, once per drop
+			toasts.playSound();
+		}
+	}
+
+	private static final int RGB = 0xFFFFFF;
+	private static final int CHAT_DETAIL_RGB = 0xAAAAAA;
+
+	private static String itemOf(DropMessage drop) {
+		return drop.amount() > 1 ? drop.name() + " x" + drop.amount() : drop.name();
+	}
+
+	private static String detailOf(DropMessage drop) {
+		String magicFind = drop.magicFind() >= 0 ? "Magic find " + drop.magicFind() : "";
+		return drop.book() ? (magicFind.isEmpty() ? BOOK_TYPE : BOOK_TYPE + " · " + magicFind) : magicFind;
 	}
 
 	/** Shows the next recorded drop, for the HUD editor's simulation of the moments; it shows whatever the chosen amount. */
@@ -144,18 +170,7 @@ public final class RareDropToast {
 		if (WAITING.size() >= MOST_WAITING) {
 			WAITING.removeFirst();
 		}
-		String item = drop.amount() > 1 ? drop.name() + " x" + drop.amount() : drop.name();
-		String magicFind = drop.magicFind() >= 0 ? "Magic find " + drop.magicFind() : "";
-		String detail = drop.book() ? (magicFind.isEmpty() ? BOOK_TYPE : BOOK_TYPE + " · " + magicFind) : magicFind;
-		WAITING.addLast(new Drop(item, color, detail, value, System.currentTimeMillis()));
-	}
-
-	/** @return the color of the item's name in the message: its rarity color, or the rare drop pink when it has none */
-	private static int colorOf(Component message, String item) {
-		String start = item.length() > 3 ? item.substring(0, 3) : item;
-		Optional<TextColor> found = message.visit((Style style, String part) -> style.getColor() != null && part.contains(start)
-			? Optional.of(style.getColor()) : Optional.empty(), Style.EMPTY);
-		return found.map(color -> 0xFF000000 | color.getValue()).orElse(RARE_PINK);
+		WAITING.addLast(new Drop(itemOf(drop), color, detailOf(drop), value, System.currentTimeMillis()));
 	}
 
 	/** Draws the toast in the HUD, centered under the info bar when it sits at the top. */

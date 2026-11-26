@@ -6,7 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The tabs of an item's window, from what the repository knows: how it is made, what it is used in, who drops it, and for a mob its drops, for an NPC its shop. A tab without data is left out. Plain data, so it is unit tested.
+ * The tabs of an item's window, from what the repository knows: how it is made (its recipe, the forge, shops, trades, Kat), its market, who drops
+ * it, and what it is used in; for a mob its drops, for an NPC its shop. A tab without data is left out. Plain data, so it is unit tested.
  */
 final class ItemTabs {
 	/** What a tab shows. */
@@ -16,8 +17,9 @@ final class ItemTabs {
 		SHOP("Shop"),
 		TRADE("Trades"),
 		KAT("Kat"),
+		MARKET("Market"),
+		DROPPED_BY("Drops"),
 		USED_IN("Used in"),
-		DROPPED_BY("Dropped by"),
 		DROPS("Drops"),
 		SELLS("Sells");
 
@@ -39,9 +41,10 @@ final class ItemTabs {
 	 * @param making   the ways to get the thing
 	 * @param uses     how many things it is used in
 	 * @param fromHere what it stands for itself, for a mob or an NPC: its drops, its shop
-	 * @return its tabs, in their order
+	 * @param market   whether it has a market to show: a price or a market it is traded in
+	 * @return its tabs, in their order: the ways to make it first, then its market, who drops it and what it is used in
 	 */
-	static List<Tab> of(List<ItemRepo.Recipe> making, int uses, List<ItemRepo.Recipe> fromHere) {
+	static List<Tab> of(List<ItemRepo.Recipe> making, int uses, List<ItemRepo.Recipe> fromHere, boolean market) {
 		List<Tab> tabs = new ArrayList<>();
 		add(tabs, Kind.DROPS, fromHere, "drops");
 		add(tabs, Kind.SELLS, fromHere, "npc_shop");
@@ -50,10 +53,13 @@ final class ItemTabs {
 		add(tabs, Kind.SHOP, making, "npc_shop");
 		add(tabs, Kind.TRADE, making, "trade");
 		add(tabs, Kind.KAT, making, "katgrade");
+		if (market) {
+			tabs.add(new Tab(Kind.MARKET, List.of()));
+		}
+		add(tabs, Kind.DROPPED_BY, making, "drops");
 		if (uses > 0) {
 			tabs.add(new Tab(Kind.USED_IN, List.of()));
 		}
-		add(tabs, Kind.DROPPED_BY, making, "drops");
 		return tabs;
 	}
 
@@ -62,6 +68,21 @@ final class ItemTabs {
 		if (!ofType.isEmpty()) {
 			tabs.add(new Tab(kind, ofType));
 		}
+	}
+
+	/** @return the tab a window opens on: Recipe when the item has one, else the first tab (a tab is only there with content), 0 without tabs */
+	static int opening(List<Tab> tabs) {
+		return Math.max(0, indexOf(tabs, Kind.RECIPE));
+	}
+
+	/** @return where a kind of tab is, or -1 */
+	static int indexOf(List<Tab> tabs, Kind kind) {
+		for (int i = 0; i < tabs.size(); i++) {
+			if (tabs.get(i).kind() == kind) {
+				return i;
+			}
+		}
+		return -1;
 	}
 
 	/** @return which of its pages a step leads to, going round */

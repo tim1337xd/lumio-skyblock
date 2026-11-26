@@ -1,13 +1,14 @@
 package dev.tim1337.lumio.skyblock.misc;
 
 import dev.tim1337.lumio.api.draw.Canvas;
+import dev.tim1337.lumio.api.experimental.debug.DebugHooks;
 import dev.tim1337.lumio.api.experimental.draw.HudTheme;
 import dev.tim1337.lumio.api.experimental.draw.PanelKit;
 import dev.tim1337.lumio.api.experimental.draw.SystemColors;
 import dev.tim1337.lumio.api.experimental.draw.TextScale;
-import dev.tim1337.lumio.api.experimental.util.Debug;
 import dev.tim1337.lumio.api.experimental.util.TextColors;
 import dev.tim1337.lumio.api.feature.AddonPanel;
+import dev.tim1337.lumio.skyblock.SkyBlockDebug;
 import dev.tim1337.lumio.skyblock.data.ItemGains;
 import dev.tim1337.lumio.skyblock.data.SkyBlock;
 
@@ -37,7 +38,7 @@ public class GrapplingHudFeature extends AddonPanel {
 	private String shownText = "";
 
 	public GrapplingHudFeature() {
-		super("grappling_hook", "Grappling Hook cooldown", "While you hold a Grappling Hook: its cooldown, as a small timer and a thin bar.", true, Anchor.CENTER, true, 125f, 18f);
+		super("grappling_hook", "Grappling Hook cooldown", "Your Grappling Hook's cooldown.", true, Anchor.CENTER, true, 125f, 18f);
 		iconRgb(SystemColors.TEAL_RGB);
 		iconName("timer");
 		summary("A timer while your hook cools down");
@@ -53,7 +54,9 @@ public class GrapplingHudFeature extends AddonPanel {
 		if (client.player != null && isEnabled()) {
 			Vec3 speed = client.player.getDeltaMovement();
 			if (cooldown.moved(speed.x, speed.y, speed.z)) {
-				Debug.log("Grappling Hook: pulled, the speed is now {}", speed);
+				if (DebugHooks.ACTIVE) {
+					DebugHooks.log(SkyBlockDebug.PANELS, "Grappling Hook: pulled, the speed is now {}", speed);
+				}
 			}
 		}
 	}
@@ -68,7 +71,9 @@ public class GrapplingHudFeature extends AddonPanel {
 	/** A message from the server. */
 	public void onMessage(Component message) {
 		if (isEnabled() && holding && GrapplingCooldown.tooSoon(TextColors.noColors(message.getString()))) {
-			Debug.log("Grappling Hook: the game says it was used too soon: {}", message.getString());
+			if (DebugHooks.ACTIVE) {
+				DebugHooks.log(SkyBlockDebug.PANELS, "Grappling Hook: the game says it was used too soon: {}", message.getString());
+			}
 			cooldown.resync();
 		}
 	}

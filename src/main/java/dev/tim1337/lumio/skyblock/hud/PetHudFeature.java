@@ -6,7 +6,6 @@ import dev.tim1337.lumio.api.experimental.draw.Draw;
 import dev.tim1337.lumio.api.experimental.draw.HudTheme;
 import dev.tim1337.lumio.api.experimental.hud.HudEditor;
 import dev.tim1337.lumio.api.feature.AddonPanel;
-import dev.tim1337.lumio.api.feature.SettingGroup;
 import dev.tim1337.lumio.api.setting.Choice;
 import dev.tim1337.lumio.api.setting.Toggle;
 
@@ -15,7 +14,6 @@ import dev.tim1337.lumio.api.experimental.draw.PanelKit;
 import dev.tim1337.lumio.api.experimental.draw.SystemColors;
 import dev.tim1337.lumio.api.experimental.motion.Easing;
 import dev.tim1337.lumio.api.experimental.motion.Spring;
-import dev.tim1337.lumio.api.experimental.ui.SlotLayer;
 import dev.tim1337.lumio.skyblock.data.PetIcons;
 import dev.tim1337.lumio.skyblock.data.PetTracker;
 import dev.tim1337.lumio.skyblock.data.SkyBlock;
@@ -104,12 +102,15 @@ public class PetHudFeature extends AddonPanel {
 	private final Toggle showXp = add(make().toggle("show_xp", Component.literal("XP numbers"), false), "General");
 	private final Toggle showItem = add(make().toggle("show_item", Component.literal("Held item"), false), "General");
 	private final Toggle rarityColor = add(make().toggle("rarity_color", Component.literal("Name in its rarity color"), true), "General");
-	private final Toggle highlightEquipped = add(make().toggle("highlight_equipped", Component.literal("Highlight equipped pet"), true), "General");
-	private final EquippedPetHighlight equippedHighlight = new EquippedPetHighlight(() -> isEnabled() && highlightEquipped.get());
+	private final Toggle highlightEquipped = add(make().toggle("highlight_equipped", Component.literal("Mark active pet"), true), "General",
+		"Works with this panel on or off");
+	private final EquippedPetHighlight equippedHighlight = new EquippedPetHighlight(this::highlightsPets);
 
 	/** Persisted: the last active pet, so it is shown right away after a restart. */
 	private static final String PETS_OF_PROFILES = "pets_of_profiles";
 	private static final String PET_ICONS = "pet_icons";
+	/** The heads remembered per profile and pet, in the settings file. */
+	private static final String PET_HEADS = "pet_heads";
 	private String savedName = "";
 	private int savedLevel;
 	private int savedColor = 0xFFFFFF;
@@ -141,19 +142,29 @@ public class PetHudFeature extends AddonPanel {
 	private String fromLevelText = "";
 	private String shortLevel = "";
 
-	/** Adds the highlight of the equipped pet to the menus' slots, at startup. */
-	public void register() {
-		SlotLayer.add((screen, graphics, mouseX, mouseY) -> equippedHighlight.draw(screen, graphics));
+	/** @return whether the active pet is boxed in the Pets menu: its own setting, with the panel on or off */
+	public boolean highlightsPets() {
+		return highlightEquipped.get();
+	}
+
+	/** The equipped pet in the Pets menu, boxed behind its item. */
+	public void drawBehind(net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> screen, net.minecraft.client.gui.GuiGraphicsExtractor graphics) {
+		equippedHighlight.draw(screen, graphics);
 	}
 
 	public PetHudFeature() {
 		super("pet_hud", "Pet", "The pet that is out in Hypixel SkyBlock.", true, Anchor.LEFT, false, 12f, 120f);
+		pageGroup("On screen");
 		iconRgb(SystemColors.ORANGE_RGB);
 		iconName("paw");
 		summary("The pet you have out");
 		offerCardSize();
 		offerNoBackground();
 		offerModes(look);
+		// the simple row has only the name, the bar and the level
+		for (Toggle cardOnly : new Toggle[] {showIcon, showRarity, showXp, showItem}) {
+			cardOnly.visibleWhen(() -> !simple());
+		}
 	}
 
 	@Override
@@ -458,6 +469,17 @@ public class PetHudFeature extends AddonPanel {
 		if (!icons.isEmpty()) {
 			json.add(PET_ICONS, icons);
 		}
+		JsonObject heads = new JsonObject();
+		PetIcons.heads().export().forEach((key, parts) -> {
+			JsonArray array = new JsonArray();
+			for (String part : parts) {
+				array.add(part);
+			}
+			heads.add(key, array);
+		});
+		if (!heads.isEmpty()) {
+			json.add(PET_HEADS, heads);
+		}
 		JsonObject ofProfiles = new JsonObject();
 		PetTracker.ofProfiles().forEach((profile, pet) -> {
 			JsonObject entry = new JsonObject();
@@ -520,6 +542,19 @@ public class PetHudFeature extends AddonPanel {
 				}
 			}
 			PetIcons.restore(read);
+		}
+		if (json.get(PET_HEADS) instanceof JsonObject heads) {
+			Map<String, String[]> read = new HashMap<>();
+			for (var entry : heads.entrySet()) {
+				if (entry.getValue() instanceof JsonArray array && array.size() == 2) {
+					try {
+						read.put(entry.getKey(), new String[] {array.get(0).getAsString(), array.get(1).getAsString()});
+					} catch (RuntimeException ignored) {
+						// an odd entry is left out
+					}
+				}
+			}
+			PetIcons.heads().restore(read);
 		}
 		if (json.has("pets") && json.get("pets").isJsonArray()) {
 			List<Object[]> read = new ArrayList<>();

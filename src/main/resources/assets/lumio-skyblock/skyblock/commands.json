@@ -96,6 +96,7 @@
 		{"name": "ah", "aliases": ["auction", "auctions"], "names": "players", "args": "[player]"},
 		{"name": "bz", "aliases": ["baz", "bazaar"], "args": "[search]"},
 		{"name": "viewrecipe", "names": "recipes", "args": "<item>"},
+		{"name": "call", "names": "contacts", "args": "<contact>"},
 		{"name": "gfs", "names": "sacks", "args": "<item> <amount>", "unconfirmed": true},
 		{"name": "warp", "aliases": ["warps"], "names": "warps", "args": "<warp>"},
 		{"name": "joininstance", "aliases": ["joindungeon", "joinkuudra"], "args": "<instance>"},

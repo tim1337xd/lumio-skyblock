@@ -76,13 +76,13 @@ final class SkyBlockPlaceFeatures implements PlaceFeatureProvider {
 		return groups;
 	}
 
-	/** @return the activity group the player is doing right now, which the card shows first: a slayer quest, a real fishing rod in hand on a fishing island, mining */
+	/** @return the activity group the player is doing right now, which the card shows first: a slayer quest, a real fishing rod in hand, mining */
 	private String doingNow() {
 		Minecraft client = Minecraft.getInstance();
 		if (location.has("slayer")) {
 			return "Slayer";
 		}
-		if (client.player != null && FishingRods.holding(client.player.getMainHandItem()) && FishingRods.onFishingIsland()) {
+		if (client.player != null && FishingRods.holding(client.player.getMainHandItem())) {
 			return "Fishing";
 		}
 		if (ProfitActivity.MINING.engaged()) {

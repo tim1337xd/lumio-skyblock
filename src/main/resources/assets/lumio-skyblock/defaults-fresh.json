@@ -1,0 +1,140 @@
+{
+  "crystal_hollows_map" : {
+    "enabled" : true,
+    "glow" : false
+  },
+  "dungeon_abilities" : {
+    "ability_ready" : false,
+    "enabled" : true,
+    "ultimate_ready" : false
+  },
+  "dungeon_alerts" : {
+    "all_secrets" : true,
+    "enabled" : true
+  },
+  "dungeon_announcements" : {
+    "score_270" : false
+  },
+  "dungeon_blood_camp" : {
+    "enabled" : true,
+    "glow" : false
+  },
+  "dungeon_boss" : {
+    "enabled" : true,
+    "glow" : false
+  },
+  "dungeon_chests" : {
+    "enabled" : true,
+    "prices" : "INSTANT"
+  },
+  "dungeon_doors" : {
+    "enabled" : true,
+    "look" : "GLOW"
+  },
+  "dungeon_f7" : {
+    "enabled" : true,
+    "glow" : false,
+    "glow_soft" : false,
+    "look_mode" : "CUSTOM",
+    "panel_theme" : "GLASS"
+  },
+  "dungeon_f7_devices" : {
+    "enabled" : true
+  },
+  "dungeon_highlights" : {
+    "bats" : true,
+    "hide_unstarred_tags" : true,
+    "minibosses" : true,
+    "starred_look" : "GLOW",
+    "teammate_names" : true,
+    "teammates" : true
+  },
+  "dungeon_invincibility" : {
+    "enabled" : true,
+    "glow" : false,
+    "glow_soft" : false,
+    "look_mode" : "CUSTOM",
+    "panel_theme" : "GLASS"
+  },
+  "dungeon_leap" : {
+    "enabled" : true
+  },
+  "dungeon_livid" : {
+    "enabled" : true
+  },
+  "dungeon_map" : {
+    "enabled" : true,
+    "glow" : false,
+    "glow_soft" : false,
+    "look_mode" : "CUSTOM",
+    "panel_theme" : "GLASS"
+  },
+  "dungeon_party_finder" : {
+    "enabled" : true
+  },
+  "dungeon_puzzles" : {
+    "enabled" : true
+  },
+  "dungeon_score" : {
+    "enabled" : true,
+    "glow" : false,
+    "glow_soft" : false,
+    "look_mode" : "CUSTOM",
+    "panel_theme" : "GLASS"
+  },
+  "dungeon_splits" : {
+    "enabled" : true,
+    "glow" : false,
+    "glow_soft" : false,
+    "look_mode" : "CUSTOM",
+    "panel_theme" : "GLASS"
+  },
+  "dungeon_terminal_status" : {
+    "enabled" : true,
+    "glow" : false
+  },
+  "dungeon_terminals" : {
+    "enabled" : true
+  },
+  "dungeon_terracotta" : {
+    "enabled" : true
+  },
+  "dungeon_waypoints" : {
+    "enabled" : true
+  },
+  "hotspot_helper" : {
+    "beam_color" : {
+      "color" : "#FF9F0A",
+      "menu" : true
+    },
+    "color" : {
+      "color" : "#0A84FF",
+      "menu" : true
+    },
+    "enabled" : true,
+    "hide_particles" : true
+  },
+  "item_list" : {
+    "panel_pinned" : false
+  },
+  "pickup_log" : {
+    "glow" : false
+  },
+  "powder_helper" : {
+    "chest_color" : {
+      "color" : "#4D8DFF",
+      "menu" : false
+    },
+    "compact" : true,
+    "enabled" : true,
+    "glow" : false,
+    "glow_soft" : false,
+    "look_mode" : "CUSTOM",
+    "powder_chosen" : true,
+    "tracer" : true,
+    "tracer_color" : {
+      "color" : "#4D8DFF",
+      "menu" : false
+    }
+  }
+}

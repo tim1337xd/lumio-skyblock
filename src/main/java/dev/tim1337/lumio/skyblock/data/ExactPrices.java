@@ -1,7 +1,9 @@
 package dev.tim1337.lumio.skyblock.data;
 
-import dev.tim1337.lumio.api.experimental.util.Debug;
+import dev.tim1337.lumio.api.experimental.debug.DebugHooks;
 import dev.tim1337.lumio.api.experimental.util.ModFiles;
+import dev.tim1337.lumio.api.experimental.util.Threads;
+import dev.tim1337.lumio.skyblock.SkyBlockDebug;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -14,7 +16,6 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.LongSupplier;
@@ -53,11 +54,8 @@ public final class ExactPrices {
 	private static final int MOST_ITEMS = 500;
 
 	/** The one running in the game. */
-	public static final ExactPrices INSTANCE = new ExactPrices(SkyBlockPrices::askCoflnet, SkyBlockPrices::postCoflnet, Executors.newSingleThreadExecutor(runnable -> {
-		Thread thread = new Thread(runnable, "Lumio item prices");
-		thread.setDaemon(true);
-		return thread;
-	}), System::currentTimeMillis).keptInFile();
+	public static final ExactPrices INSTANCE = new ExactPrices(SkyBlockPrices::askCoflnet, SkyBlockPrices::postCoflnet, Threads.daemonExecutor("Lumio item prices"),
+		System::currentTimeMillis).keptInFile();
 
 	private final Function<String, JsonElement> get;
 	private final BiFunction<String, String, JsonElement> post;
@@ -176,7 +174,9 @@ public final class ExactPrices {
 					adopt(ExactPricesFile.fromJson(JsonParser.parseString(Files.readString(file)).getAsJsonObject()));
 				}
 			} catch (IOException | RuntimeException e) {
-				Debug.log("Could not read the kept prices: {}", e.toString());
+				if (DebugHooks.ACTIVE) {
+					DebugHooks.log(SkyBlockDebug.PRICES, "Could not read the kept prices: {}", e.toString());
+				}
 			}
 		});
 	}
@@ -186,7 +186,9 @@ public final class ExactPrices {
 			try {
 				ModFiles.writeAtomically(ModFiles.file(FILE), root.toString());
 			} catch (IOException | RuntimeException e) {
-				Debug.log("Could not keep the prices: {}", e.toString());
+				if (DebugHooks.ACTIVE) {
+					DebugHooks.log(SkyBlockDebug.PRICES, "Could not keep the prices: {}", e.toString());
+				}
 			}
 		});
 	}
@@ -199,7 +201,9 @@ public final class ExactPrices {
 				changed = true;
 			}
 		} catch (RuntimeException e) {
-			Debug.log("Could not fetch the prices of {}: {}", tag, e.toString());
+			if (DebugHooks.ACTIVE) {
+				DebugHooks.log(SkyBlockDebug.PRICES, "Could not fetch the prices of {}: {}", tag, e.toString());
+			}
 			synchronized (this) {
 				pausedUntil = clock.getAsLong() + PAUSE_MILLIS;
 			}

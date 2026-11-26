@@ -78,11 +78,12 @@ public class MineshaftPityHudFeature extends AddonPanel {
 	private boolean showingSample;
 
 	public MineshaftPityHudFeature() {
-		super("mineshaft_pity", "Mineshaft pity", "How near the next Glacite Mineshaft is by pity, and the blocks of each kind it still takes.", true, Anchor.LEFT, false, 200f, 380f);
+		super("mineshaft_pity", "Mineshaft pity", "How near the next Mineshaft is by pity.", true, Anchor.LEFT, false, 200f, 380f);
+		pageGroup("Panels");
 		offerCardSize();
 		iconRgb(SystemColors.TEAL_RGB);
 		iconName("gem");
-		summary("How near the next Glacite Mineshaft is, by pity points");
+		summary("How near the next Mineshaft is");
 		offerHeader();
 		offerNoBackground();
 	}

@@ -13,7 +13,7 @@ import java.util.List;
 
 /**
  * Entries in the game's own command suggestions (see {@link SkyBlockSuggestions}): subcommands, warps, players by context, item ids with a
- * recipe and sack items, each kind on its own chip. Nothing is ever sent.
+ * recipe, sack items and Abiphone contacts, each kind on its own chip. Nothing is ever sent.
  */
 public class CommandSuggestionsFeature extends AddonFeature {
 	private final Toggle suggestCommands = make().toggle("suggest_commands", Component.literal("Commands"), true, Toggle.Style.CHECKBOX);
@@ -22,15 +22,16 @@ public class CommandSuggestionsFeature extends AddonFeature {
 	private final Toggle suggestParty = make().toggle("suggest_party", Component.literal("Party"), true, Toggle.Style.CHECKBOX);
 	private final Toggle suggestRecipes = make().toggle("suggest_recipes", Component.literal("Recipes"), true, Toggle.Style.CHECKBOX);
 	private final Toggle suggestSacks = make().toggle("suggest_sacks", Component.literal("Sacks"), true, Toggle.Style.CHECKBOX);
+	private final Toggle suggestContacts = make().toggle("suggest_contacts", Component.literal("Contacts"), true, Toggle.Style.CHECKBOX);
 	private final MultiToggle suggestions = add(make().multi("command_suggestions", Component.literal("Suggest"),
-		List.of(suggestCommands, suggestWarps, suggestPlayers, suggestParty, suggestRecipes, suggestSacks)).asChips(), "Suggestions");
+		List.of(suggestCommands, suggestWarps, suggestPlayers, suggestParty, suggestRecipes, suggestSacks, suggestContacts)).asChips(), "Suggestions");
 
 	public CommandSuggestionsFeature() {
-		super("command_suggestions", "Command suggestions", "More entries in the game's command suggestions: subcommands, warps, players by context, "
-			+ "recipes and sacks. It learns from what the game shows you and sends nothing.", true);
+		super("command_suggestions", "Command suggestions", "More command suggestions. Nothing is sent.", true);
+		pageGroup("Chat and party");
 		iconRgb(SystemColors.BLUE_RGB);
 		iconName("terminal");
-		summary("Subcommands, warps, players and more as you type");
+		summary("More suggestions as you type");
 	}
 
 	/** @return whether the SkyBlock suggestions of a kind are added to the command suggestions */
@@ -45,6 +46,7 @@ public class CommandSuggestionsFeature extends AddonFeature {
 			case GUILD, FRIENDS -> suggestPlayers.get();
 			case RECIPES -> suggestRecipes.get();
 			case SACKS -> suggestSacks.get();
+			case CONTACTS -> suggestContacts.get();
 		};
 	}
 

@@ -1,14 +1,31 @@
 package dev.tim1337.lumio.skyblock.misc;
 
+import dev.tim1337.lumio.api.experimental.ui.UiSounds;
+
+import dev.tim1337.lumio.api.LumioApi;
+
+import java.util.Set;
+
+import java.util.LinkedHashSet;
+
+import com.google.gson.JsonObject;
+
+import com.google.gson.JsonElement;
+
+import com.google.gson.JsonArray;
+
+import dev.tim1337.lumio.api.LumioChat;
 import dev.tim1337.lumio.api.experimental.draw.SystemColors;
 import dev.tim1337.lumio.api.experimental.util.Logs;
 import dev.tim1337.lumio.api.experimental.util.ModFiles;
+import dev.tim1337.lumio.api.experimental.util.Threads;
 import dev.tim1337.lumio.api.feature.AddonFeature;
 import dev.tim1337.lumio.api.feature.KeyPlace;
 import dev.tim1337.lumio.api.setting.Choice;
 import dev.tim1337.lumio.api.setting.SettingFactory;
 import dev.tim1337.lumio.api.setting.Toggle;
 import dev.tim1337.lumio.skyblock.SkyBlockAddon;
+import dev.tim1337.lumio.skyblock.SkyBlockFeatures;
 import dev.tim1337.lumio.skyblock.data.ItemGains;
 import dev.tim1337.lumio.skyblock.data.SkyBlock;
 import dev.tim1337.lumio.skyblock.data.SkyBlockArea;
@@ -54,8 +71,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Predicate;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
  * Item protection, an idea from Skyblocker: the items the player marked can't be given away by accident. It only ever holds back the player's own click or key
@@ -64,7 +81,7 @@ import java.util.concurrent.Executors;
 public class ItemProtectionFeature extends AddonFeature {
 	/** How a blocked action is told. */
 	public enum Notice {
-		TOAST("Toast"),
+		TOAST("Pop-up"),
 		CHAT("Chat"),
 		OFF("Off");
 
@@ -82,8 +99,8 @@ public class ItemProtectionFeature extends AddonFeature {
 
 	private static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(SkyBlockAddon.ID, "item_protection"));
 	private static final String FILE = "item_protection.json";
-	private static final String TITLE = "Item protected";
-	private static final String ICON = "lock";
+	private static final String TITLE = "Favorite kept safe";
+	private static final String ICON = "star";
 	private static final String SELL_ALL_BUTTON = "Sell Inventory";
 	private static final String SELL_BUTTON = "Sell Item";
 	private static final String BUYBACK_WORD = "buyback";
@@ -97,19 +114,36 @@ public class ItemProtectionFeature extends AddonFeature {
 	private static final float LOCK_STEP = 0.5f;
 	private static final float LOCK_CENTER = 3.5f;
 	private static final int[][] LOCK_RUNS = {{0, 2, 5}, {1, 1, 2}, {1, 5, 6}, {2, 1, 2}, {2, 5, 6}, {3, 0, 7}, {4, 0, 3}, {4, 4, 7}, {5, 0, 3}, {5, 4, 7}, {6, 0, 7}};
+	// the star, in the same steps
+	private static final int[][] STAR_RUNS = {{0, 3, 4}, {1, 2, 5}, {2, 0, 7}, {3, 1, 6}, {4, 2, 5}, {5, 1, 3}, {5, 4, 6}, {6, 0, 2}, {6, 5, 7}};
+	private static final int STAR_COLOR = 0xE6FFD60A;
 	private static final long PULSE_MILLIS = 350L;
 	private static final float PULSE_GROWTH = 0.7f;
 
-	private static final ExecutorService FILES = Executors.newSingleThreadExecutor(runnable -> {
-		Thread thread = new Thread(runnable, "Lumio item protection");
-		thread.setDaemon(true);
-		return thread;
-	});
+	private static final ExecutorService FILES = Threads.daemonExecutor("Lumio item protection");
 
 	private static SettingFactory make() {
 		return SkyBlockAddon.make();
 	}
 
+	/** How a favorite is marked in the inventories. */
+	public enum Marker {
+		STAR("Star"), LOCK("Lock");
+
+		private final String label;
+
+		Marker(String label) {
+			this.label = label;
+		}
+
+		Component label() {
+			return Component.literal(label);
+		}
+	}
+
+	private final Toggle protect = add(make().toggle("protect", Component.literal("Protect favorites"), true), "General",
+		"Each action below can be allowed");
+	private final Choice<Marker> marker = add(make().choice("marker", Component.literal("Marker"), Marker.STAR, Marker::label, Choice.Style.SEGMENTED), "General");
 	private final Toggle blockDrop = add(make().toggle("block_drop", Component.literal("Dropping"), true), "Blocked");
 	private final Toggle blockSell = add(make().toggle("block_sell", Component.literal("NPC selling"), true), "Blocked");
 	private final Toggle blockSalvage = add(make().toggle("block_salvage", Component.literal("Salvaging"), true), "Blocked");
@@ -118,14 +152,21 @@ public class ItemProtectionFeature extends AddonFeature {
 	private final Toggle blockDungeonChest = add(make().toggle("block_dungeon_chest", Component.literal("Swapping in dungeon chests"), true), "Blocked");
 	private final Toggle blockFrame = add(make().toggle("block_frame", Component.literal("Item frames"), true), "Blocked", "On your island or the Garden");
 	private final Toggle consumables = add(make().toggle("valuable_consumables", Component.literal("Valuable consumables"), true), "Extras",
-		"Bottle of Jyrre, Dark Cacao Truffle, Discrite, Moby-Duck and Rosewater Flask can't be used before they have evolved");
+		"Not used before they have evolved");
 	private final Toggle dropInDungeons = add(make().toggle("drop_in_dungeons", Component.literal("Allow dropping in dungeons"), false), "Extras");
 	private final Choice<Notice> notice = add(make().choice("notice", Component.literal("Notice"), Notice.TOAST, Notice::label, Choice.Style.SEGMENTED), "Extras");
 
 	private final ProtectedItems items = new ProtectedItems();
+	/** The kinds of item starred as a whole (every item of the kind, by its SkyBlock id); the item list kept them before. */
+	private final Set<String> kinds = new LinkedHashSet<>();
+	private static final int MOST_KINDS = 1000;
+	/** The two lists of favorites, asked for every item drawn: made once. */
+	private final Predicate<String> itemMarked = uuid -> items.has(uuid);
+	private final Predicate<String> kindMarked = kinds::contains;
 	/** The UUID per custom data instance, "" for none: an item's data never changes, and it can only be read as a full copy. */
 	private CompletableFuture<ProtectedItems> reading;
-	private KeyMapping key;
+	private KeyMapping oldKey;
+	private boolean bindMoved;
 	private String pendingRemoval;
 	private long pendingSince;
 	private String pulsing;
@@ -133,20 +174,29 @@ public class ItemProtectionFeature extends AddonFeature {
 	private long noticedAt;
 
 	public ItemProtectionFeature() {
-		super("item_protection", "Item protection", "Marks items so that they can't be given away by accident: press its key over one, or /lumio protect.", true);
+		super("item_protection", "Favorite items", "Favorites, kept from being given away.", true);
+		pageGroup("Items and inventory");
 		iconRgb(SystemColors.BLUE_RGB);
 		iconName(ICON);
-		summary("Keep your best items from being given away");
+		summary("Starred and kept from being given away");
+		for (Toggle blocked : new Toggle[] {blockDrop, blockSell, blockSalvage, blockTrade, blockAuction, blockDungeonChest, blockFrame}) {
+			blocked.visibleWhen(protect::get);
+		}
+		dropInDungeons.visibleWhen(() -> protect.get() && blockDrop.get());
 	}
 
 	/** The key, the command and what the file kept. */
 	public void register() {
-		key = KeyMappingHelper.registerKeyMapping(new KeyMapping("key." + SkyBlockAddon.ID + ".item_protection", InputConstants.Type.KEYSYM, InputConstants.KEY_V, CATEGORY));
-		addKey(key, KeyPlace.WORLD);
-		addKey(key, KeyPlace.SCREENS);
+		// the old protect key, kept only so its bind can move to the favorite key once (the game drops binds of keys it no longer knows)
+		oldKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key." + SkyBlockAddon.ID + ".item_protection", InputConstants.Type.KEYSYM, InputConstants.UNKNOWN.getValue(), CATEGORY));
+		KeyMapping favorite = SkyBlockFeatures.ITEM_LIST.favoriteKey();
+		if (favorite != null) {
+			addKey(favorite, KeyPlace.WORLD);
+			addKey(favorite, KeyPlace.SCREENS);
+		}
 		ClientTickEvents.END_CLIENT_TICK.register(this::tick);
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, buildContext) -> dispatcher.register(ClientCommands.literal("lumio")
-			.then(ClientCommands.literal("protect").executes(context -> {
+			.then(ClientCommands.literal("favorite").executes(context -> {
 				Minecraft client = Minecraft.getInstance();
 				if (client.player != null) {
 					toggle(client.player.getMainHandItem());
@@ -186,6 +236,11 @@ public class ItemProtectionFeature extends AddonFeature {
 				items.adopt(kept);
 			}
 		}
+		KeyMapping key = SkyBlockFeatures.ITEM_LIST.favoriteKey();
+		if (!bindMoved && key != null && oldKey != null) {
+			bindMoved = true;
+			moveOldBind(client, key);
+		}
 		// the game counts presses only while no screen is open; in a screen the key arrives through keyPressed
 		boolean pressed = false;
 		while (key != null && key.consumeClick()) {
@@ -196,24 +251,52 @@ public class ItemProtectionFeature extends AddonFeature {
 		}
 	}
 
+	/** Once: if only the old protect key was bound, its bind becomes the favorite key's, and the old one is left without. */
+	private void moveOldBind(Minecraft client, KeyMapping favorite) {
+		if (!FavoriteRules.movesBind(!favorite.isUnbound(), !oldKey.isUnbound())) {
+			return;
+		}
+		favorite.setKey(InputConstants.getKey(oldKey.saveString()));
+		oldKey.setKey(InputConstants.UNKNOWN);
+		KeyMapping.resetMapping();
+		client.options.save();
+	}
+
 	private boolean on() {
 		return isEnabled() && SkyBlock.allowed();
 	}
 
-	/** @return whether the player protected this item; cheap, as it is asked for every item drawn */
-	public boolean isProtected(ItemStack stack) {
-		if (items.isEmpty() || !on() || stack.isEmpty()) {
+	/**
+	 * @return whether the item is a favorite: this very item (by its own id), or its kind, starred in the item list. Cheap, as it is asked for every
+	 *         item drawn.
+	 */
+	public boolean isFavorite(ItemStack stack) {
+		if (!on() || stack.isEmpty()) {
 			return false;
 		}
-		String uuid = ItemGains.uuidOf(stack);
-		return !uuid.isEmpty() && items.has(uuid);
+		String uuid = items.isEmpty() ? "" : ItemGains.uuidOf(stack);
+		String kind = kinds.isEmpty() ? null : ItemGains.idOf(stack);
+		return FavoriteRules.favorite(uuid, kind, itemMarked, kindMarked);
 	}
 
-	/** Protects an item, or takes the protection away with a second press soon after the first. */
+	/** @return whether the item is a favorite that can't be given away now */
+	public boolean isProtected(ItemStack stack) {
+		return protect.get() && isFavorite(stack);
+	}
+
+	/**
+	 * Makes an item a favorite, or takes it back with a second press soon after the first: this very item when it has its own id, else its kind (as
+	 * the item list stars it).
+	 */
 	private void toggle(ItemStack stack) {
 		String uuid = stack.isEmpty() ? "" : ItemGains.uuidOf(stack);
 		if (uuid.isEmpty()) {
-			tell("Can't protect this", "Only items with their own id can be");
+			String kind = stack.isEmpty() ? null : ItemGains.idOf(stack);
+			if (kind == null) {
+				tell("Can't mark this", "Only SkyBlock items can be favorites");
+				return;
+			}
+			toggleKind(kind);
 			return;
 		}
 		long now = System.currentTimeMillis();
@@ -221,7 +304,7 @@ public class ItemProtectionFeature extends AddonFeature {
 			if (items.add(StorageTracker.profile(), uuid)) {
 				writeFile();
 				pulse(uuid);
-				tell(TITLE, "It can't be given away now");
+				tell("Favorite", protect.get() ? "Starred, and it can't be given away now" : "Starred");
 			}
 			return;
 		}
@@ -229,17 +312,54 @@ public class ItemProtectionFeature extends AddonFeature {
 			pendingRemoval = null;
 			items.remove(uuid);
 			writeFile();
-			tell("Protection removed", "");
+			tell("Favorite removed", "");
 			return;
 		}
 		pendingRemoval = uuid;
 		pendingSince = now;
 		pulse(uuid);
-		tell("Press again to unprotect", "");
+		tell("Press again to remove the favorite", "");
+	}
+
+	/** Stars a kind of item as a whole, or takes the star back: every item of the kind is a favorite. */
+	public void toggleKind(String kind) {
+		boolean was = kinds.remove(kind);
+		if (!was && kinds.size() < MOST_KINDS) {
+			kinds.add(kind);
+		}
+		UiSounds.click();
+		LumioApi.saveSoon();
+		tell(was ? "Favorite removed" : "Favorite", was ? "" : "Every item of this kind is starred and kept safe");
+	}
+
+	@Override
+	public JsonObject save() {
+		JsonObject json = super.save();
+		JsonArray list = new JsonArray();
+		kinds.forEach(list::add);
+		json.add("kinds", list);
+		return json;
+	}
+
+	@Override
+	public void load(JsonObject json) {
+		super.load(json);
+		kinds.clear();
+		if (json.has("kinds") && json.get("kinds").isJsonArray()) {
+			for (JsonElement kind : json.getAsJsonArray("kinds")) {
+				if (kind.isJsonPrimitive() && kinds.size() < MOST_KINDS) {
+					kinds.add(kind.getAsString());
+				}
+			}
+		} else {
+			// an older config: the kinds were the item list's favorites (it is read first)
+			kinds.addAll(SkyBlockFeatures.ITEM_LIST.oldFavorites());
+		}
 	}
 
 	/** The key over an item in a screen. @return whether it was used */
 	public boolean keyPressed(Screen screen, KeyEvent event) {
+		KeyMapping key = SkyBlockFeatures.ITEM_LIST.favoriteKey();
 		if (key == null || !key.matches(event) || !on()) {
 			return false;
 		}
@@ -402,10 +522,7 @@ public class ItemProtectionFeature extends AddonFeature {
 		switch (notice.get()) {
 			case TOAST -> Toasts.brief(ICON, title, text, TOAST_SECONDS);
 			case CHAT -> {
-				Minecraft client = Minecraft.getInstance();
-				if (client.player != null) {
-					client.player.sendSystemMessage(Component.literal(text.isEmpty() ? title : title + ": " + text));
-				}
+				LumioChat.info(Component.literal(text.isEmpty() ? title : title + ": " + text));
 			}
 			case OFF -> {
 			}
@@ -417,7 +534,7 @@ public class ItemProtectionFeature extends AddonFeature {
 		pulsedAt = System.currentTimeMillis();
 	}
 
-	/** Draws the lock over a protected item in the slot at this place. */
+	/** Draws the marker (a star or a lock) over a favorite in the slot at this place. */
 	public void drawLock(GuiGraphicsExtractor graphics, ItemStack stack, int x, int y) {
 		float size = LOCK_STEP;
 		if (pulsing != null) {
@@ -428,16 +545,16 @@ public class ItemProtectionFeature extends AddonFeature {
 				size *= 1f + PULSE_GROWTH * Mth.sin(step * Mth.PI);
 			}
 		}
-		drawLockAt(graphics, x, y, size);
+		drawMarkerAt(graphics, x, y, size, marker.get() == Marker.STAR ? STAR_RUNS : LOCK_RUNS, marker.get() == Marker.STAR ? STAR_COLOR : LOCK_COLOR);
 	}
 
-	private static void drawLockAt(GuiGraphicsExtractor graphics, int x, int y, float size) {
+	private static void drawMarkerAt(GuiGraphicsExtractor graphics, int x, int y, float size, int[][] runs, int color) {
 		graphics.pose().pushMatrix();
 		graphics.pose().translate(x + LOCK_CENTER * LOCK_STEP, y + LOCK_CENTER * LOCK_STEP);
 		graphics.pose().scale(size);
 		graphics.pose().translate(-LOCK_CENTER, -LOCK_CENTER);
-		for (int[] run : LOCK_RUNS) {
-			graphics.fill(run[1], run[0], run[2], run[0] + 1, LOCK_COLOR);
+		for (int[] run : runs) {
+			graphics.fill(run[1], run[0], run[2], run[0] + 1, color);
 		}
 		graphics.pose().popMatrix();
 	}

@@ -32,10 +32,11 @@ public final class SkyBlockAddon implements LumioAddon {
 	@Override
 	public void onInitialize(AddonContext context) {
 		SkyBlockRegistration.register(context);
-		// the storage overlay has its own inventory and fills the screen: nothing of the HUD shares it
-		HudCover.add(StorageOverlay::active);
-		HudCover.add(WardrobeOverlay::active);
-		HudCover.add(dev.tim1337.lumio.skyblock.hud.ItemListFeature::coversHud);
+		// no overlay hides the HUD as a whole: each says where it draws (ScreenRoom), and only the HUD elements under it step back
+		HudCover.addReplaced(StorageOverlay::active);
+		HudCover.addReplaced(WardrobeOverlay::active);
+		// where the add-on's smaller overlays lie on a menu: HUD elements behind the menu fade there
+		HudCover.addAreas(dev.tim1337.lumio.skyblock.hud.ScreenRoom::lastTaken);
 		// last: while the add-on did not start, its mixins do nothing
 		active = true;
 	}

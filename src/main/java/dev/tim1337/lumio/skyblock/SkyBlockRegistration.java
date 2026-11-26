@@ -1,5 +1,6 @@
 package dev.tim1337.lumio.skyblock;
 
+import dev.tim1337.lumio.api.experimental.debug.DebugHooks;
 import dev.tim1337.lumio.api.experimental.ui.SlotLayer;
 import dev.tim1337.lumio.api.experimental.util.ScreenInput;
 import dev.tim1337.lumio.api.AddonContext;
@@ -27,6 +28,7 @@ import dev.tim1337.lumio.skyblock.slayer.SlayerBosses;
 import net.minecraft.resources.Identifier;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import dev.tim1337.lumio.api.experimental.util.WorldLabels;
 
 import net.fabricmc.fabric.api.client.rendering.v1.PictureInPictureRendererRegistry;
@@ -76,8 +78,10 @@ final class SkyBlockRegistration {
 		context.registerChatListener(new SkyBlockChatListener());
 		context.registerSuggestions(SkyBlockSuggestions.provider());
 		context.registerScreenHooks(new SkyBlockScreenHooks());
-		context.registerDiagnostics("pets", PetTracker::describe);
-		context.registerDiagnostics("skyblock", SkyBlock::describe);
+		// read-only state for a debug tool (the debug add-on lists them); nothing reads them in a normal game
+		DebugHooks.view("skyblock.pets", PetTracker::describe);
+		DebugHooks.view("skyblock.state", SkyBlock::describe);
+		DebugHooks.view("skyblock.experiments", SkyBlockFeatures.EXPERIMENTS::debugLines);
 		context.registerInfoValues(new SkyBlockInfoValues());
 		context.registerStatusValues(new SkyBlockStatusValues());
 		context.registerTabCards(new SkyBlockTabCards());
@@ -89,8 +93,12 @@ final class SkyBlockRegistration {
 		// first, so a face-down card's name comes right under the game's lines
 		context.registerTooltipLines(new SuperpairsSeenLines(SkyBlockFeatures.EXPERIMENTS));
 		context.registerTooltipLines(SkyBlockFeatures.TOOLTIP_LINES);
+		context.registerTooltipLines(SkyBlockFeatures.DUNGEON_PARTY_FINDER);
+		context.registerTooltipLines(SkyBlockFeatures.ITEM_LIST.hover());
 		context.registerChatTab(SkyBlockFeatures.CHAT_TAB);
 		context.registerBlockTint(SkyBlockScreenParts.TICK_GLIDE);
+		// the add-on's releases take part in Lumio's update check (off unless the player turns it on; nothing is downloaded without Update)
+		dev.tim1337.lumio.api.experimental.util.AddonUpdates.offer(SkyBlockAddon.ID, "tim1337xd", "lumio-skyblock", "lumio-skyblock");
 		registerEvents();
 	}
 
@@ -108,11 +116,14 @@ final class SkyBlockRegistration {
 				DEPLOYABLES.onUse(player, player.getItemInHand(hand));
 				GRAPPLING_HOOK.onUse(player, player.getItemInHand(hand));
 				EXPERIMENT_REWARDS.onUse(Minecraft.getInstance(), player.getItemInHand(hand));
+				SkyBlockFeatures.HOTSPOT_HELPER.onUse(player, player.getItemInHand(hand));
 			}
 			return InteractionResult.PASS;
 		});
 		UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
 			if (level.isClientSide()) {
+				DUNGEON_WAYPOINTS.used(hit.getBlockPos());
+				DUNGEON_PUZZLES.used(hit.getBlockPos());
 				DEPLOYABLES.onUse(player, player.getItemInHand(hand));
 			}
 			return InteractionResult.PASS;
@@ -121,11 +132,70 @@ final class SkyBlockRegistration {
 		ItemGains.register();
 		// storage: pages are cached while open, and the overlay is drawn over the storage menu
 		StorageTracker.register();
+		dev.tim1337.lumio.skyblock.dungeon.DungeonVisualRules.register();
 		ClientTickEvents.END_CLIENT_TICK.register(SkyBlockFeatures.TOOLTIP_LINES::tick);
+		// the one queue of Lumio's on-screen titles: the next waiting one, when its turn has come
+		ClientTickEvents.END_CLIENT_TICK.register(dev.tim1337.lumio.skyblock.hud.TitleQueue::tick);
+		// the dungeon run: floor, party, numbers, phase and room, read only while in the Catacombs
+		ClientTickEvents.END_CLIENT_TICK.register(dev.tim1337.lumio.skyblock.dungeon.Dungeon::tick);
+		dev.tim1337.lumio.skyblock.dungeon.DungeonTicks.register();
+		// Lumio's lines after a block of Hypixel's, and a corpse loot list that never got its closing bar
+		ClientTickEvents.END_CLIENT_TICK.register(client -> {
+			dev.tim1337.lumio.skyblock.data.ItemGains.tickCorpse();
+			dev.tim1337.lumio.skyblock.chat.AfterBlock.tick();
+		});
+		DUNGEON_WAYPOINTS.register();
+		DUNGEON_ANNOUNCEMENTS.register();
+		SkyBlockFeatures.DUNGEON_AUTO_REQUEUE.register();
+		// "Block wrong clicks" of the two F7 solvers: the key to click anyway, and the device solver's look at the player's own clicks
+		SkyBlockFeatures.DUNGEON_TERMINALS.register();
+		SkyBlockFeatures.DUNGEON_F7_DEVICES.register();
+		SkyBlockFeatures.DUNGEON_PARTY_FINDER.register();
+		LevelRenderEvents.COLLECT_SUBMITS.register(DUNGEON_WAYPOINTS::draw);
+		ClientTickEvents.END_CLIENT_TICK.register(DUNGEON_HIGHLIGHTS::tick);
+		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, id("dungeon_teammate_names"), DUNGEON_HIGHLIGHTS::drawNames);
+		ClientTickEvents.END_CLIENT_TICK.register(DUNGEON_DOORS::tick);
+		ClientTickEvents.END_CLIENT_TICK.register(SkyBlockFeatures.DUNGEON_THORN::tick);
+		ClientTickEvents.END_CLIENT_TICK.register(SkyBlockFeatures.DUNGEON_LIVID::tick);
+		net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.COLLECT_SUBMITS.register(SkyBlockFeatures.DUNGEON_LIVID::collect);
+		ClientTickEvents.END_CLIENT_TICK.register(DUNGEON_PUZZLES::tick);
+		LevelRenderEvents.COLLECT_SUBMITS.register(DUNGEON_PUZZLES::draw);
+		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, id("dungeon_puzzle_labels"), DUNGEON_PUZZLES::drawLabels);
+		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, id("dungeon_boss"), SkyBlockFeatures.DUNGEON_THORN::render);
+		LevelRenderEvents.COLLECT_SUBMITS.register(DUNGEON_BLOOD_CAMP::draw);
+		ClientTickEvents.END_CLIENT_TICK.register(DUNGEON_BLOOD_CAMP::tick);
+		ClientTickEvents.END_CLIENT_TICK.register(SkyBlockFeatures.PARTY_COMMANDS::tick);
+		// what the profit trackers counted: a file of its own per profile, apart from the settings
+		for (ProfitHudFeature profit : PROFITS) {
+			dev.tim1337.lumio.skyblock.data.ProfitData.store().add(profit.id(), profit.stored());
+		}
+		dev.tim1337.lumio.skyblock.data.ProfitData.store().add(SkyBlockFeatures.POWDER_HELPER.id(), SkyBlockFeatures.POWDER_HELPER.stored());
+		ClientTickEvents.END_CLIENT_TICK.register(dev.tim1337.lumio.skyblock.data.ProfitData::tick);
+		net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents.CLIENT_STOPPING.register(client -> dev.tim1337.lumio.skyblock.data.ProfitData.stopping());
+		SkyBlockFeatures.DUNGEON_ABILITIES.register();
+		SkyBlockFeatures.DUNGEON_INVINCIBILITY.register();
+		dev.tim1337.lumio.skyblock.dungeon.f7.F7State.listen();
+		ClientTickEvents.END_CLIENT_TICK.register(SkyBlockFeatures.DUNGEON_F7::tick);
+		ClientTickEvents.END_CLIENT_TICK.register(client -> SkyBlockFeatures.DUNGEON_F7_DEVICES.tick(client, dev.tim1337.lumio.skyblock.dungeon.f7.F7State.phase()));
+		LevelRenderEvents.COLLECT_SUBMITS.register(SkyBlockFeatures.DUNGEON_F7_DEVICES::draw);
+		ClientTickEvents.END_CLIENT_TICK.register(SkyBlockFeatures.DUNGEON_TERRACOTTA::tick);
+		LevelRenderEvents.COLLECT_SUBMITS.register(SkyBlockFeatures.DUNGEON_TERRACOTTA::draw);
+		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, id("dungeon_f7_device_labels"), SkyBlockFeatures.DUNGEON_F7_DEVICES::drawLabels);
+		ClientTickEvents.END_CLIENT_TICK.register(SkyBlockFeatures.DUNGEON_ABILITIES::tick);
+		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, id("dungeon_alert"), dev.tim1337.lumio.skyblock.dungeon.DungeonAlert::draw);
+		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, id("dungeon_blood_camp"), DUNGEON_BLOOD_CAMP::render);
+		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, id("dungeon_auto_requeue"), SkyBlockFeatures.DUNGEON_AUTO_REQUEUE::render);
+		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, id("dungeon_blood_labels"), DUNGEON_BLOOD_CAMP::drawLabels);
+		LevelRenderEvents.COLLECT_SUBMITS.register(DUNGEON_DOORS::draw);
+		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, id("dungeon_splits"), DUNGEON_SPLITS::render);
+		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, id("dungeon_map"), DUNGEON_MAP::render);
+		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, id("dungeon_score"), DUNGEON_SCORE::render);
+		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, id("dungeon_invincibility"), SkyBlockFeatures.DUNGEON_INVINCIBILITY::render);
+		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, id("dungeon_f7"), SkyBlockFeatures.DUNGEON_F7::render);
+		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, id("dungeon_terminal_status"), SkyBlockFeatures.DUNGEON_TERMINAL_STATUS::render);
 		WardrobeOverlay.register();
 		PictureInPictureRendererRegistry.register(context -> new WardrobeModelRenderer());
 		EXPERIMENTS.register();
-		PET.register();
 		EXPERIMENTS.trackWith(EXPERIMENT_REWARDS);
 		EXPERIMENT_PROFIT.showTiles((bucket, mode) -> new String[][]{{"Tables", ProfitTracker.count(bucket.events)},
 			{"ULTRA-RARE", ProfitTracker.count(bucket.counters.getOrDefault(ExperimentProfit.ULTRA_RARE, 0L))},
@@ -135,6 +205,10 @@ final class SkyBlockRegistration {
 		ClientTickEvents.END_CLIENT_TICK.register(client -> DRAGON_REWARDS.tick());
 		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, id("last_dragons_hud"), LAST_DRAGONS::render);
 		ClientTickEvents.END_CLIENT_TICK.register(GRAPPLING_HOOK::tick);
+		ClientTickEvents.END_CLIENT_TICK.register(SkyBlockFeatures.BITE_TIMER::tick);
+		SkyBlockFeatures.PICKUP_LOG.register();
+		ClientTickEvents.END_CLIENT_TICK.register(SkyBlockFeatures.PICKUP_LOG::tick);
+		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, id("pickup_log_hud"), SkyBlockFeatures.PICKUP_LOG::render);
 		ClientTickEvents.END_CLIENT_TICK.register(BREAK_RESET_FIX::tick);
 		ClientTickEvents.END_CLIENT_TICK.register(dev.tim1337.lumio.skyblock.hud.SpeedBar::tick);
 		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, id("grappling_hook_hud"), GRAPPLING_HOOK::render);
@@ -144,8 +218,6 @@ final class SkyBlockRegistration {
 			ProfitActivity.experiments(EXPERIMENTS.isEnabled() && client.gui.screen() instanceof net.minecraft.client.gui.screens.inventory.ContainerScreen chest && inTableMenu(chest));
 		});
 		STORAGE.register();
-		ITEM_PROTECTION.register();
-		ARROWS.register();
 		ClientTickEvents.END_CLIENT_TICK.register(ARROWS::tick);
 		// only scan the inventory while a profit tracker is enabled
 		ItemGains.wantedWhen(() -> MINING_PROFIT.isEnabled() || FARMING_PROFIT.isEnabled() || SLAYER_PROFIT.isEnabled() || FISHING_PROFIT.isEnabled() || DRAGON_PROFIT.isEnabled());
@@ -156,15 +228,29 @@ final class SkyBlockRegistration {
 			HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, id(profit.id() + "_hud"), profit::render);
 		}
 		ClientTickEvents.END_CLIENT_TICK.register(SEA_CREATURES::tick);
+		ClientTickEvents.END_CLIENT_TICK.register(SkyBlockFeatures.FISHING_ALERTS::tick);
 		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, id("sea_creatures_hud"), SEA_CREATURES::render);
 		// before the item list, so its dimming of the slots lies over the numbers as over the items
 		PET_CANDY.register();
+		// before the item list: the buttons say where they are before the item search places its panels
+		SkyBlockFeatures.INVENTORY_BUTTONS.register();
 		ITEM_LIST.register();
+		// after the item list, whose favorite key it shares
+		ITEM_PROTECTION.register();
 		CORPSES.register();
 		KEEP_TERRAIN.register();
 		ETHERWARP.register();
 		MINING_ABILITY.registerPickobulus();
 		TICK_GLIDE.register();
+		SkyBlockFeatures.POWDER_HELPER.register();
+		SkyBlockFeatures.HOLLOWS_MAP.register();
+		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, id("crystal_hollows_map_hud"), SkyBlockFeatures.HOLLOWS_MAP::render);
+		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, id("powder_helper_hud"), SkyBlockFeatures.POWDER_HELPER::render);
+		SkyBlockFeatures.PRECISION_MINING.register();
+		SkyBlockFeatures.HOTSPOT_HELPER.register();
+		SkyBlockFeatures.SLOT_BINDS.register();
+		SkyBlockFeatures.LOADOUT_KEYS.register();
+		SkyBlockFeatures.DUNGEON_ALERTS.register();
 		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, id("commissions_hud"), COMMISSIONS::render);
 		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, id("mineshaft_pity_hud"), MINESHAFT_PITY::render);
 		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, id("pest_hud"), PESTS::render);
@@ -179,8 +265,13 @@ final class SkyBlockRegistration {
 		BOSS_LABEL.register();
 		COCOONS.register();
 		ENCHANT_COLORS.register();
+		// whether the player farms is looked up first: the Mouse lock and the Farming Keys read it in the same tick
+		dev.tim1337.lumio.skyblock.farming.FarmingWatch.register();
 		MOUSE_LOCK.register();
+		FARMING_KEYS.register();
+		ClientTickEvents.END_CLIENT_TICK.register(PEST_HIGHLIGHT::tick);
 		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, id("mouse_lock_hud"), MOUSE_LOCK::render);
+		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, id("farming_keys_hud"), FARMING_KEYS::render);
 		WorldLabels.add(BOSS_LABEL::render);
 		WorldLabels.add(MINIBOSSES::drawDropLabels);
 		WorldLabels.add(COCOONS::render);
@@ -197,12 +288,20 @@ final class SkyBlockRegistration {
 				EQUIPMENT.renderInInventory(graphics, inventory);
 			}
 		});
+		// behind the items: Croesus' runs and a run's chests not opened yet, the equipped pet in the Pets menu
+		SlotLayer.addBehind((screen, graphics, mouseX, mouseY) -> {
+			DUNGEON_CHESTS.drawBehind(screen, graphics);
+			PET.drawBehind(screen, graphics);
+		});
 		// the profit trackers are drawn on top of inventories; clicking them switches the time range and price mode (like SkyHanni)
 		SlotLayer.add((screen, graphics, mouseX, mouseY) -> {
 			for (ProfitHudFeature profit : PROFITS) {
 				profit.renderInInventory(graphics, mouseX, mouseY);
 			}
 			SEA_CREATURES.renderInInventory(graphics, mouseX, mouseY);
+			DUNGEON_CHESTS.draw(screen, graphics, mouseX, mouseY);
+			SkyBlockFeatures.DUNGEON_INVINCIBILITY.drawSlots(screen, graphics, mouseX, mouseY);
+			SkyBlockFeatures.DUNGEON_TERMINALS.drawOnMenu(screen, graphics);
 			COMMISSIONS.highlightInMenu(screen, graphics);
 		});
 		ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {

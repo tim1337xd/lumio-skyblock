@@ -35,7 +35,7 @@ import java.util.regex.Pattern;
 
 /**
  * The entries of the game's own command suggestions (the list above the chat input) for the commands the mod knows: subcommands with what they take, warps with their islands,
- * players by context (party members, friends and guild first), item ids with a recipe for /viewrecipe and sack items for /gfs. Where the mod knows what a word takes, only its own entries
+ * players by context (party members, friends and guild first), item ids with a recipe for /viewrecipe, sack items for /gfs and Abiphone contacts for /call. Where the mod knows what a word takes, only its own entries
  * that match the word are shown, in place of the server's; elsewhere the server's stay. Nothing is ever sent: the entries come from the tab list, the world, the chat and the item repository.
  */
 public final class SkyBlockSuggestions {
@@ -70,6 +70,7 @@ public final class SkyBlockSuggestions {
 		});
 		CommandHints.setUsage(SkyBlockSuggestions::usage);
 		LearnedCommands.register();
+		AbiphoneContacts.register();
 	}
 
 	/**
@@ -91,7 +92,8 @@ public final class SkyBlockSuggestions {
 		Map<String, String> hints = new HashMap<>();
 		List<String> first = first(found, chat, hints);
 		List<String> names = found.names() == null || found.names() == CommandCompletion.Source.WARPS || !chat.suggests(found.names())
-			? List.of() : CommandCompletion.order(found.typed(), groups(found.names(), chat), MOST);
+			? List.of() : found.names() == CommandCompletion.Source.CONTACTS ? contacts(found.typed(), hints)
+			: CommandCompletion.order(found.typed(), groups(found.names(), chat), MOST);
 		// where the list knows what the word takes, only its own entries that match the word are shown: the server suggests all of a command's subcommands at
 		// any word of Hypixel's commands; with nothing that matches, the list is empty and the game shows none
 		return server.thenApply(suggested -> ours(input, cursor, found.start(), first, names, hints));
@@ -191,7 +193,25 @@ public final class SkyBlockSuggestions {
 			case FRIENDS -> List.of(List.copyOf(LearnedCommands.NAMES.friends()));
 			case RECIPES -> List.of(recipeIds());
 			case SACKS -> List.of(sackItems());
+			case CONTACTS -> List.of();
 		};
+	}
+
+	/**
+	 * @return what /call takes for the contacts that match, best first (the player's own before the others among equals), with the contact's name as
+	 *         a quiet text where /call knows it by another name; nothing when the item repository is not read yet
+	 */
+	private static List<String> contacts(String typed, Map<String, String> hints) {
+		ItemRepo.loadIfNeeded();
+		List<String> texts = new ArrayList<>();
+		for (ContactCompletion.Contact contact : ContactCompletion.order(typed, ItemRepo.abiphoneContacts(), AbiphoneContacts.own())) {
+			String text = contact.callText();
+			texts.add(text);
+			if (!text.equals(contact.name())) {
+				hints.put(text, contact.name());
+			}
+		}
+		return texts;
 	}
 
 	/** @return the party members, never the player */

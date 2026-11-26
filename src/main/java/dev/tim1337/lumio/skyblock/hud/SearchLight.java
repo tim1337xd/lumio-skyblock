@@ -1,7 +1,7 @@
 package dev.tim1337.lumio.skyblock.hud;
 
 /**
- * Whether the item search lights up the slots: typing only filters; double-clicking the search bar turns the slots' light on, and again off. It stays on from one container to the
+ * Whether the item search lights up the slots: its highlight mode. Typing alone only filters the items; double-clicking the search bar switches the mode on (matches light up, the rest dims), and again off. It stays on from one container to the
  * next, and goes off with Esc or once no screen has been open for a moment (a server changing containers closes one a little before it opens the next). Plain numbers, so it is
  * unit tested.
  */
@@ -50,7 +50,7 @@ final class SearchLight {
 		return on;
 	}
 
-	/** @return whether the slots light up for a search: an empty search never does */
+	/** @return whether the slots light up for a search: only in highlight mode, while something is typed; an empty search never does */
 	boolean lights(String search) {
 		return on && !search.isBlank();
 	}

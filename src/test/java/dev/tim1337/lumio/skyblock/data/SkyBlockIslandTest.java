@@ -22,9 +22,4 @@ class SkyBlockIslandTest {
 		}
 		assertTrue(SkyBlockIsland.miningHappensOn(""), "between two worlds the island is not known");
 	}
-
-	@Test
-	void fishingIsNotTrackedOnThePrivateIsland() {
-		assertFalse(FishingRods.fishingIsland("Private Island"));
-	}
 }

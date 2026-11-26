@@ -5,7 +5,6 @@ import dev.tim1337.lumio.api.experimental.draw.Draw;
 import dev.tim1337.lumio.api.experimental.draw.HudTheme;
 import dev.tim1337.lumio.api.experimental.hud.HudEditor;
 import dev.tim1337.lumio.api.feature.AddonPanel;
-import dev.tim1337.lumio.api.feature.SettingGroup;
 import dev.tim1337.lumio.api.setting.Toggle;
 
 import static dev.tim1337.lumio.skyblock.SkyBlockAddon.make;
@@ -57,17 +56,12 @@ public class VisitorHudFeature extends AddonPanel {
 	private long nextAt;
 	private boolean seen;
 
-	/** @return how many visitors are in the Garden, or -1 when not known (read while this panel is on) */
-	public int visitorCount() {
-		return count;
-	}
-
 	public VisitorHudFeature() {
-		super("visitor_hud", "Visitors", "The visitors of the Garden: who is there, how many, and when the next one comes.", false, Anchor.LEFT, false, 200f, 230f);
+		super("visitor_hud", "Visitors", "Garden visitors: who, how many, next one.", false, Anchor.LEFT, false, 200f, 230f);
 		offerCardSize();
 		iconRgb(SystemColors.GREEN_RGB);
 		iconName("person");
-		summary("Your Garden visitors and when the next one comes");
+		summary("Garden visitors and the next one");
 		offerHeader();
 		offerNoBackground();
 	}

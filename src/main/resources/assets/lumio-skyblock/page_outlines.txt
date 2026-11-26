@@ -1,4 +1,4 @@
-# How the add-on's pages are laid out: features | Main or Advanced | group | key | name. See PageOutline in the main mod. The saved keys stay; only rows and names move.
+# How the add-on's pages are laid out: features | Main, Advanced or Page <title> @<icon> (a sub-page, opened from the page's overview) | group | key | name. See PageOutline in the main mod. The saved keys stay; only rows and names move.
 
 # Profit panels: the same page for all of them
 mining_profit, farming_profit, slayer_profit, fishing_profit, corpse_profit, experiment_profit, dragon_profit | Main | Look | look | Style
@@ -8,12 +8,15 @@ mining_profit, farming_profit, slayer_profit, fishing_profit, corpse_profit, exp
 mining_profit, farming_profit, slayer_profit, fishing_profit, corpse_profit, experiment_profit, dragon_profit | Main | Shows | show_chart
 mining_profit, farming_profit, slayer_profit, fishing_profit, corpse_profit, experiment_profit, dragon_profit | Main | Shows | show_per_hour
 mining_profit, farming_profit, slayer_profit, fishing_profit, corpse_profit, experiment_profit, dragon_profit | Main | Shows | show_counts
+corpse_profit | Main | Shows | show_for
+corpse_profit | Main | Shows | chat_profit
+mining_profit, farming_profit, slayer_profit, fishing_profit | Main | Shows | count_shards
 mining_profit, farming_profit, slayer_profit, fishing_profit, corpse_profit, experiment_profit, dragon_profit | Main | Appearance | look_row
 mining_profit, farming_profit, slayer_profit, fishing_profit, corpse_profit, experiment_profit, dragon_profit | Advanced | Reset | reset_session | Reset session
 mining_profit, farming_profit, slayer_profit, fishing_profit, corpse_profit, experiment_profit, dragon_profit | Advanced | Reset | reset_today | Reset today
 mining_profit, farming_profit, slayer_profit, fishing_profit, corpse_profit, experiment_profit, dragon_profit | Advanced | Reset | reset_lifetime | Reset all time
 dragon_profit | Advanced | Dragons | eyes_cost
-dragon_profit | Advanced | Dragons | count_leeched
+dragon_profit | Advanced | Dragons | count_leeched | | Counts a dragon when you were in the Nest and the fight lists you, also without eyes of yours.
 dragon_profit | Advanced | Dragons | show_last
 
 # Pet
@@ -59,32 +62,96 @@ storage_overlay | Main | Storage | columns
 storage_overlay | Main | Storage | show_unseen
 storage_overlay | Main | Background | background
 storage_overlay | Main | Background | background_strength
-storage_overlay | Advanced | Keys | key.lumio-skyblock.storage_preview | Open the overview
+storage_overlay | Main | Keys | key.lumio-skyblock.storage_preview | Open the overview
 
-# Item list
-item_list | Main | Search | search_lore | Search lore
-item_list | Main | Search | tab_search | Tab focuses search
-item_list | Advanced | Search | right_clear | Right-click clears
-item_list | Main | Search | keep_search | Remember search
-item_list | Main | Look | only_while_searching | Only while searching
-item_list | Main | Look | prices_on_hover
-item_list | Main | Look | favorites_first
-item_list | Main | Look | item_size
-item_list | Advanced | Appearance | search_glow
-item_list | Main | Look | sort
-item_list | Advanced | Search | info_highlight
-item_list | Advanced | Data | info_items
-item_list | Advanced | Data | refresh_items | Refresh items
-item_list | Advanced | Keys | key.lumio-skyblock.item_list_toggle
-item_list | Advanced | Keys | key.lumio-skyblock.item_list_recipe
-item_list | Advanced | Keys | key.lumio-skyblock.item_list_usage
-item_list | Advanced | Keys | key.lumio-skyblock.item_list_favorite
-item_list | Advanced | Keys | key.lumio-skyblock.item_list_wiki
-item_list | Advanced | Keys | key.lumio-skyblock.item_list_craft
+# Item list: grouped as in the settings sheet of the item search
+item_list | Page Search @search | Search | search_lore | Search item lore
+item_list | Page Search @search | Search | tab_search | Tab focuses the search
+item_list | Page Search @search | Search | right_clear | Right-click clears
+item_list | Page Search @search | Search | keep_search | Remember the search
+item_list | Page Search @search | Search | highlight_matches | Highlight matches in the inventory
+item_list | Page Search @search | Search | info_highlight
+item_list | Page Show in @eye | Show in | show_inventory | Inventory
+item_list | Page Items @grid | Items | item_size
+item_list | Page Items @grid | Items | sort
+item_list | Page Items @grid | Items | on_hover | On hover
+item_list | Page Items @grid | Items | prices_on_hover
+item_list | Page Items @grid | Items | only_while_searching | Only while searching
+item_list | Page Items @grid | Items | search_glow
+item_list | Page Look @palette | Look | look_theme | Theme
+item_list | Page Look @palette | Look | look_accent | Accent
+item_list | Page Look @palette | Look | look_background | Background
+item_list | Page Pinned @pin | Pinned | pinned_view | View
+item_list | Page Pinned @pin | Pinned | pinned_price | Price
+item_list | Page Pinned @pin | Pinned | pinned_trend | Trend | Once Lumio has kept a price from a day ago.
+item_list | Page Pinned @pin | Pinned | pinned_first | Pinned first in results
+item_list | Page Pinned @pin | Pinned | pinned_item_size
+item_list | Page Recent @clock | Recent | recent_count | How many
+item_list | Page Recent @clock | Recent | recent_clear | Clear
+item_list | Page Recent @clock | Recent | recent_item_size
+item_list | Page Layout @layout | Layout | lock_layout | Lock layout
+item_list | Page Layout @layout | Layout | snap_grid | Snap to the grid
+item_list | Page Layout @layout | Layout | reset_layout | Reset layout
+item_list | Page Panels @window | Panels | panel_items
+item_list | Page Panels @window | Panels | panel_pinned
+item_list | Page Panels @window | Panels | panel_recent
+item_list | Page Panels @window | Panels | panel_details
+item_list | Page Data @list | Data | info_items
+item_list | Page Data @list | Data | refresh_items | Refresh items
+item_list | Main | Keys | key.lumio-skyblock.item_list_toggle
+item_list | Main | Keys | key.lumio-skyblock.item_list_recipe
+item_list | Main | Keys | key.lumio-skyblock.item_list_usage
+item_list | Main | Keys | key.lumio-skyblock.item_list_wiki
+item_list | Main | Keys | key.lumio-skyblock.item_list_pin
+item_list | Main | Keys | key.lumio-skyblock.item_list_craft
+
+# Dungeon waypoints: as in the mockup of its sheet
+dungeon_waypoints | Main | Rooms | rooms_row | Rooms and points
+dungeon_waypoints | Page Shows @eye > Look | Shows | label
+dungeon_waypoints | Page Shows @eye > Look | Shows | types
+dungeon_waypoints | Page Shows @eye > Look | Shows | hide_found
+dungeon_waypoints | Page Shows @eye > Look | Shows | show
+dungeon_waypoints | Page Shows @eye > Look | Shows | through_walls | | Only where a point says so.
+dungeon_waypoints | Page Look @palette > Look | Look | use_general_look
+dungeon_waypoints | Page Look @palette > Look | Look | look_text_size
+dungeon_waypoints | Page Look @palette > Look | Look | look_text_distance
+dungeon_waypoints | Page Look @palette > Look | Look | look_show_name
+dungeon_waypoints | Page Look @palette > Look | Look | look_show_distance
+dungeon_waypoints | Page Look @palette > Look | Look | look_text_shadow
+dungeon_waypoints | Page Look @palette > Look | Look | look_text_background
+dungeon_waypoints | Page Look @palette > Look | Look | look_marker
+dungeon_waypoints | Page Look @palette > Look | Look | look_line_width
+dungeon_waypoints | Page Look @palette > Look | Look | look_fill
+dungeon_waypoints | Page Look @palette > Look | Look | look_beam
+dungeon_waypoints | Page Look @palette > Look | Look | look_beam_height
+dungeon_waypoints | Page Look @palette > Look | Look | look_beam_strength
+dungeon_waypoints | Page Look @palette > Look | Look | look_fade_near
+dungeon_waypoints | Page Look @palette > Look | Look | look_max_distance
+dungeon_waypoints | Page Look @palette > Look | Look | look_icon_size
+dungeon_waypoints | Main | Place in the room | key.lumio.waypoint_place | Place or edit a point
+dungeon_waypoints | Main | Place in the room | key.lumio-skyblock.dungeon_waypoint_remove | Remove a point
+dungeon_waypoints | Advanced | Place in the room | new_type
+dungeon_waypoints | Advanced | Place in the room | new_filled
+dungeon_waypoints | Page Import and export @link > Rooms | Import and export | import_row | Import
+dungeon_waypoints | Page Import and export @link > Rooms | Import and export | export_row | Export
+dungeon_waypoints | Page Import and export @link > Rooms | Import and export | format
+dungeon_waypoints | Main | Delete | delete_row | Delete all points
+
+# Item pickup log
+pickup_log | Main | Shows | show
+pickup_log | Main | Shows | sacks
+pickup_log | Main | Shows | coins
+pickup_log | Main | Shows | value
+pickup_log | Advanced | Shows | while_menu
+pickup_log | Advanced | Shows | hide_list | | Items, by name or part of it, separated by commas (* for anything).
+pickup_log | Main | Look | style
+pickup_log | Main | Look | max_lines
+pickup_log | Main | Look | duration
+pickup_log | Main | Look | text_size
 
 # Custom scoreboard
 custom_scoreboard | Main | Lines | parts | Lines
-custom_scoreboard | Main | Text | title_text
+custom_scoreboard | Main | Text | title_text | | Empty: as the server writes it. & for colors, such as &e&lSKYBLOCK.
 custom_scoreboard | Main | Text | footer_text
 
 # Slayer panel
@@ -114,11 +181,11 @@ minibosses | Main | Highlight | highlight
 minibosses | Main | Highlight | boss_highlight
 minibosses | Main | Highlight | drops
 minibosses | Main | Highlight | color
-minibosses | Main | Alert | alert
-minibosses | Main | Alert | sound
-minibosses | Main | Alert | volume
-minibosses | Main | Alert | boss_alert | Also for the boss
-minibosses | Advanced | Alert | preview | Try it
+minibosses | Main | Alerts | alert
+minibosses | Main | Alerts | sound
+minibosses | Main | Alerts | volume
+minibosses | Main | Alerts | boss_alert | Also for the boss
+minibosses | Advanced | Alerts | preview | Try it
 
 # Sea creatures
 sea_creatures | Main | Look | range
@@ -180,15 +247,19 @@ hotm_tree_hud | Main | Appearance | look_row
 pest_hud | Main | Look | look
 pest_hud | Main | Shows | show_plots
 pest_hud | Main | Shows | show_cooldown
-pest_hud | Main | Shows | show_spray
-pest_hud | Main | Shows | show_last
-pest_hud | Main | Shows | show_visitors
+pest_hud | Main | Shows | show_last | | How long ago the last pest came, and the usual time between them.
 pest_hud | Advanced | Alerts | custom_cooldown
 pest_hud | Main | Alerts | alert
 pest_hud | Main | Alerts | spawn_alert
 pest_hud | Advanced | Alerts | alert_seconds
 pest_hud | Main | Alerts | alert_sound
 pest_hud | Advanced | Alerts | alert_volume
+
+# Pest highlight
+pest_highlight | Main | Look | menu_color
+pest_highlight | Main | Look | color
+pest_highlight | Main | Look | glow | | 0: only the line.
+pest_highlight | Main | Look | line_width
 pest_hud | Main | Appearance | look_row
 
 # Visitors
@@ -206,12 +277,26 @@ farming_hud | Main | Shows | show_mantid
 farming_hud | Main | Appearance | look_row
 
 # Mouse lock
-mouse_lock | Main | Lock | mode
+mouse_lock | Main | Lock | mode | | Lock: the camera doesn't turn. Slow: it turns less, for small adjustments.
 mouse_lock | Main | Lock | percent
 mouse_lock | Main | Lock | unlock_on_teleport | Unlock on teleport
 mouse_lock | Main | Lock | notices | Alerts
-mouse_lock | Advanced | Keys | key.lumio-skyblock.mouse_lock
+mouse_lock | Main | Automatic | auto_lock | Lock by itself while farming | While you hold a farming tool in the Garden and are not flying. It lets go at once when you fly, switch items, open a screen, step on the Barn or teleport.
+mouse_lock | Main | Automatic | lock_mark | Lock mark
+mouse_lock | Main | Keys | key.lumio-skyblock.mouse_lock
 mouse_lock | Main | Appearance | look_row
+
+# Farming Keys
+farming_keys | Main | Keys | normal_off | Game's keys off
+farming_keys | Main | Keys | mark | Show a small mark while active
+farming_keys | Main | Keys | key.lumio-skyblock.farming_break
+farming_keys | Main | Keys | key.lumio-skyblock.farming_use
+farming_keys | Main | Keys | key.lumio-skyblock.farming_left
+farming_keys | Main | Keys | key.lumio-skyblock.farming_right
+farming_keys | Main | Keys | key.lumio-skyblock.farming_forward
+farming_keys | Main | Keys | key.lumio-skyblock.farming_back
+farming_keys | Main | Keys | key.lumio-skyblock.farming_jump
+farming_keys | Main | Keys | key.lumio-skyblock.farming_sneak
 
 # Etherwarp
 etherwarp | Main | Look | mode
@@ -220,8 +305,11 @@ etherwarp | Main | Fails | show_fail
 etherwarp | Main | Fails | fail_color | Color
 etherwarp | Main | Look | full_block
 
-# Drop toasts
+# Drop alerts
 drop_toasts | Main | Drops | show_from
+drop_toasts | Main | Drops | show_as
+drop_toasts | Main | Drops | title_from
+drop_toasts | Main | Drops | title_seconds
 drop_toasts | Main | Sound | sound
 drop_toasts | Main | Sound | volume
 
@@ -232,19 +320,19 @@ enchant_colors | Main | Colors | perfect
 enchant_colors | Main | Colors | great
 enchant_colors | Main | Colors | good
 enchant_colors | Main | Colors | poor
-enchant_colors | Main | Colors | hide_game_lines
-enchant_colors | Main | Style | perfect_look | Perfect style
-enchant_colors | Main | Style | perfect_count
-enchant_colors | Main | Style | perfect_first
-enchant_colors | Main | Style | perfect_second
-enchant_colors | Main | Style | perfect_third
-enchant_colors | Main | Style | perfect_speed
-enchant_colors | Main | Style | ultimate_look | Ultimate style
-enchant_colors | Main | Style | ultimate_count
-enchant_colors | Main | Style | ultimate_first
-enchant_colors | Main | Style | ultimate_second
-enchant_colors | Main | Style | ultimate_third
-enchant_colors | Main | Style | ultimate_speed
+enchant_colors | Main | Colors | hide_game_lines | | The game's own line under the name, when the lore lists the same enchant.
+enchant_colors | Page Perfect @sparkle | Perfect | perfect_look | Style
+enchant_colors | Page Perfect @sparkle | Perfect | perfect_count
+enchant_colors | Page Perfect @sparkle | Perfect | perfect_first
+enchant_colors | Page Perfect @sparkle | Perfect | perfect_second
+enchant_colors | Page Perfect @sparkle | Perfect | perfect_third
+enchant_colors | Page Perfect @sparkle | Perfect | perfect_speed
+enchant_colors | Page Ultimate @star | Ultimate | ultimate_look | Style
+enchant_colors | Page Ultimate @star | Ultimate | ultimate_count
+enchant_colors | Page Ultimate @star | Ultimate | ultimate_first
+enchant_colors | Page Ultimate @star | Ultimate | ultimate_second
+enchant_colors | Page Ultimate @star | Ultimate | ultimate_third
+enchant_colors | Page Ultimate @star | Ultimate | ultimate_speed
 
 # Cocoons
 cocoons | Main | Look | look
@@ -255,9 +343,6 @@ cocoons | Main | Shows | shows
 cocoons | Main | Look | preview
 cocoons | Main | Shows | only_when_i_can | Only when I can
 
-# Developer: shown from About while the debug switch is on
-minibosses | Developer | Developer | drop_debug
-item_tooltip_lines | Developer | Developer | dungeon_data
 
 # Pages that stay as they are, and only take new names
 slayer_helpers | Name | | gummy_reminder | Reminder
@@ -285,7 +370,6 @@ experiments | Main | Chronomatron and Ultrasequencer | block_wrong_clicks
 experiments | Main | Shows | info
 experiments | Main | Shows | alerts
 experiments | Advanced | Shows | guardian
-experiments | Advanced | Advanced | debug_overlay
 wardrobe_overlay | Main | Wardrobe | about
 wardrobe_overlay | Main | Wardrobe | show_set_names
 wardrobe_overlay | Main | Wardrobe | follow_mouse
@@ -293,12 +377,13 @@ wardrobe_overlay | Main | Background | background
 wardrobe_overlay | Main | Background | background_strength
 celebrations | Main | Celebrations | about
 break_reset_fix | Main | Break Reset Fix | about
-break_reset_fix | Advanced | Advanced | debug_log
 explosions_hider | Main | Explosions | about
 grappling_hook | Main | Appearance | look_row
 last_dragons | Main | Appearance | look_row
 
 # Item protection
+item_protection | Main | General | protect
+item_protection | Main | General | marker
 item_protection | Main | Blocked | block_drop
 item_protection | Main | Blocked | block_sell
 item_protection | Main | Blocked | block_salvage
@@ -306,6 +391,484 @@ item_protection | Main | Blocked | block_trade
 item_protection | Main | Blocked | block_auction
 item_protection | Main | Blocked | block_dungeon_chest
 item_protection | Main | Blocked | block_frame
-item_protection | Main | Extras | valuable_consumables
+item_protection | Main | Extras | valuable_consumables | | Bottle of Jyrre, Dark Cacao Truffle, Discrite, Moby-Duck and Rosewater Flask.
 item_protection | Main | Extras | drop_in_dungeons
 item_protection | Main | Extras | notice
+
+# Pages outlined on 2026-11-17 (settings audit), longest first: their groups as before, with sub-pages and Advanced where they were long
+
+# Fishing alerts: the alerts on the page, the rest on sub-pages
+fishing_alerts | Main | Alerts | title
+fishing_alerts | Main | Alerts | sound
+fishing_alerts | Main | Alerts | sound_which
+fishing_alerts | Main | Alerts | sound_volume
+fishing_alerts | Page Party @people > Alerts | Party | share
+fishing_alerts | Page Party @people > Alerts | Party | share_coords
+fishing_alerts | Page Party @people > Alerts | Party | share_text
+fishing_alerts | Page From others @eye > Alerts | From others | from_chat
+fishing_alerts | Page From others @eye > Alerts | From others | chat_party
+fishing_alerts | Page From others @eye > Alerts | From others | chat_coop
+fishing_alerts | Page From others @eye > Alerts | From others | chat_guild
+fishing_alerts | Page From others @eye > Alerts | From others | chat_public
+fishing_alerts | Page From others @eye > Alerts | From others | nearby | | A sea creature of the list that appears near you and is not yours.
+fishing_alerts | Page From others @eye > Alerts | From others | nearby_within
+fishing_alerts | Page From others @eye > Alerts | From others | highlight
+fishing_alerts | Page From others @eye > Alerts | From others | highlight_color
+fishing_alerts | Page From others @eye > Alerts | On screen | others_show
+fishing_alerts | Page From others @eye > Alerts | On screen | others_sound
+fishing_alerts | Page From others @eye > Alerts | On screen | others_sound_which
+fishing_alerts | Page From others @eye > Alerts | On screen | others_sound_volume
+fishing_alerts | Page Alert list @list_check > Alerts | Alert list | list_rare
+fishing_alerts | Page Alert list @list_check > Alerts | Alert list | list_all
+fishing_alerts | Page Alert list @list_check > Alerts | Alert list | list_none
+fishing_alerts | Page Alert list @list_check > Alerts | Water | alert_night_squid
+fishing_alerts | Page Alert list @list_check > Alerts | Water | alert_squid
+fishing_alerts | Page Alert list @list_check > Alerts | Water | alert_sea_walker
+fishing_alerts | Page Alert list @list_check > Alerts | Water | alert_sea_guardian
+fishing_alerts | Page Alert list @list_check > Alerts | Water | alert_sea_archer
+fishing_alerts | Page Alert list @list_check > Alerts | Water | alert_rider_of_the_deep
+fishing_alerts | Page Alert list @list_check > Alerts | Water | alert_sea_witch
+fishing_alerts | Page Alert list @list_check > Alerts | Water | alert_oasis_sheep
+fishing_alerts | Page Alert list @list_check > Alerts | Water | alert_oasis_rabbit
+fishing_alerts | Page Alert list @list_check > Alerts | Water | alert_agarimoo
+fishing_alerts | Page Alert list @list_check > Alerts | Water | alert_carrot_king
+fishing_alerts | Page Alert list @list_check > Alerts | Water | alert_catfish
+fishing_alerts | Page Alert list @list_check > Alerts | Water | alert_sea_leech
+fishing_alerts | Page Alert list @list_check > Alerts | Water | alert_guardian_defender
+fishing_alerts | Page Alert list @list_check > Alerts | Water | alert_deep_sea_protector
+fishing_alerts | Page Alert list @list_check > Alerts | Water | alert_water_hydra
+fishing_alerts | Page Alert list @list_check > Alerts | Mines | alert_small_mithril_grubber
+fishing_alerts | Page Alert list @list_check > Alerts | Mines | alert_medium_mithril_grubber
+fishing_alerts | Page Alert list @list_check > Alerts | Mines | alert_large_mithril_grubber
+fishing_alerts | Page Alert list @list_check > Alerts | Mines | alert_bloated_mithril_grubber
+fishing_alerts | Page Alert list @list_check > Alerts | Mines | alert_lava_blaze
+fishing_alerts | Page Alert list @list_check > Alerts | Mines | alert_lava_pigman
+fishing_alerts | Page Alert list @list_check > Alerts | Mines | alert_flaming_worm
+fishing_alerts | Page Alert list @list_check > Alerts | Mines | alert_water_worm
+fishing_alerts | Page Alert list @list_check > Alerts | Mines | alert_poisoned_water_worm
+fishing_alerts | Page Alert list @list_check > Alerts | Mines | alert_abyssal_miner
+fishing_alerts | Page Alert list @list_check > Alerts | Crimson Isle | alert_moogma
+fishing_alerts | Page Alert list @list_check > Alerts | Crimson Isle | alert_magma_slug
+fishing_alerts | Page Alert list @list_check > Alerts | Crimson Isle | alert_pyroclastic_worm
+fishing_alerts | Page Alert list @list_check > Alerts | Crimson Isle | alert_lava_flame
+fishing_alerts | Page Alert list @list_check > Alerts | Crimson Isle | alert_fire_eel
+fishing_alerts | Page Alert list @list_check > Alerts | Crimson Isle | alert_lava_leech
+fishing_alerts | Page Alert list @list_check > Alerts | Crimson Isle | alert_taurus
+fishing_alerts | Page Alert list @list_check > Alerts | Crimson Isle | alert_thunder
+fishing_alerts | Page Alert list @list_check > Alerts | Crimson Isle | alert_lord_jawbus
+fishing_alerts | Page Alert list @list_check > Alerts | Crimson Isle | alert_plhlegblast
+fishing_alerts | Page Alert list @list_check > Alerts | Spooky Festival | alert_scarecrow
+fishing_alerts | Page Alert list @list_check > Alerts | Spooky Festival | alert_jumpin'_jack
+fishing_alerts | Page Alert list @list_check > Alerts | Spooky Festival | alert_nightmare
+fishing_alerts | Page Alert list @list_check > Alerts | Spooky Festival | alert_werewolf
+fishing_alerts | Page Alert list @list_check > Alerts | Spooky Festival | alert_phantom_fisher
+fishing_alerts | Page Alert list @list_check > Alerts | Spooky Festival | alert_grim_reaper
+fishing_alerts | Page Alert list @list_check > Alerts | Jerry's Workshop | alert_frozen_steve
+fishing_alerts | Page Alert list @list_check > Alerts | Jerry's Workshop | alert_frosty
+fishing_alerts | Page Alert list @list_check > Alerts | Jerry's Workshop | alert_grinch
+fishing_alerts | Page Alert list @list_check > Alerts | Jerry's Workshop | alert_nutcracker
+fishing_alerts | Page Alert list @list_check > Alerts | Jerry's Workshop | alert_yeti
+fishing_alerts | Page Alert list @list_check > Alerts | Jerry's Workshop | alert_reindrake
+fishing_alerts | Page Alert list @list_check > Alerts | Fishing Festival | alert_nurse_shark
+fishing_alerts | Page Alert list @list_check > Alerts | Fishing Festival | alert_blue_shark
+fishing_alerts | Page Alert list @list_check > Alerts | Fishing Festival | alert_tiger_shark
+fishing_alerts | Page Alert list @list_check > Alerts | Fishing Festival | alert_great_white_shark
+fishing_alerts | Page Alert list @list_check > Alerts | Backwater Bayou | alert_trash_gobbler
+fishing_alerts | Page Alert list @list_check > Alerts | Backwater Bayou | alert_dumpster_diver
+fishing_alerts | Page Alert list @list_check > Alerts | Backwater Bayou | alert_banshee
+fishing_alerts | Page Alert list @list_check > Alerts | Backwater Bayou | alert_bayou_sludge
+fishing_alerts | Page Alert list @list_check > Alerts | Backwater Bayou | alert_alligator
+fishing_alerts | Page Alert list @list_check > Alerts | Backwater Bayou | alert_titanoboa
+fishing_alerts | Page Alert list @list_check > Alerts | Hotspots | alert_fried_chicken
+fishing_alerts | Page Alert list @list_check > Alerts | Hotspots | alert_frog_man
+fishing_alerts | Page Alert list @list_check > Alerts | Hotspots | alert_volcanic_snail
+fishing_alerts | Page Alert list @list_check > Alerts | Hotspots | alert_inkling
+fishing_alerts | Page Alert list @list_check > Alerts | Hotspots | alert_fireproof_witch
+fishing_alerts | Page Alert list @list_check > Alerts | Hotspots | alert_snapping_turtle
+fishing_alerts | Page Alert list @list_check > Alerts | Hotspots | alert_magma_pillar
+fishing_alerts | Page Alert list @list_check > Alerts | Hotspots | alert_manta_ray
+fishing_alerts | Page Alert list @list_check > Alerts | Hotspots | alert_fiery_scuttler
+fishing_alerts | Page Alert list @list_check > Alerts | Hotspots | alert_blue_ringed_octopus
+fishing_alerts | Page Alert list @list_check > Alerts | Hotspots | alert_ragnarok
+fishing_alerts | Page Alert list @list_check > Alerts | Hotspots | alert_wiki_tiki
+fishing_alerts | Page Alert list @list_check > Alerts | Galatea | alert_bogged
+fishing_alerts | Page Alert list @list_check > Alerts | Galatea | alert_wetwing
+fishing_alerts | Page Alert list @list_check > Alerts | Galatea | alert_tadgang
+fishing_alerts | Page Alert list @list_check > Alerts | Galatea | alert_stridersurfer
+fishing_alerts | Page Alert list @list_check > Alerts | Galatea | alert_ent
+fishing_alerts | Page Alert list @list_check > Alerts | Galatea | alert_the_loch_emperor
+fishing_alerts | Page Alert list @list_check > Alerts | Galatea | alert_nessie
+fishing_alerts | Page Alert list @list_check > Alerts | Lotus Atoll | alert_atoll_croaker
+fishing_alerts | Page Alert list @list_check > Alerts | Lotus Atoll | alert_lotus_guardian
+fishing_alerts | Page Alert list @list_check > Alerts | Lotus Atoll | alert_gorf
+fishing_alerts | Page Alert list @list_check > Alerts | Lotus Atoll | alert_drowned_captain
+fishing_alerts | Page Alert list @list_check > Alerts | Lotus Atoll | alert_puddle_jumper
+fishing_alerts | Page Alert list @list_check > Alerts | Lotus Atoll | alert_frog_prince
+fishing_alerts | Page Alert list @list_check > Alerts | Torrhus Canyon | alert_haggard
+fishing_alerts | Page Alert list @list_check > Alerts | Torrhus Canyon | alert_brineling
+fishing_alerts | Page Alert list @list_check > Alerts | Torrhus Canyon | alert_sprawl
+fishing_alerts | Page Alert list @list_check > Alerts | Torrhus Canyon | alert_torrid
+fishing_alerts | Page Alert list @list_check > Alerts | Torrhus Canyon | alert_silkbreeze
+fishing_alerts | Page Alert list @list_check > Alerts | Torrhus Canyon | alert_giant_isopod
+hotspot_helper | Main | Highlight | highlight
+hotspot_helper | Main | Highlight | color
+hotspot_helper | Main | Highlight | fill
+hotspot_helper | Main | Highlight | hide_particles
+hotspot_helper | Main | Radar | radar
+hotspot_helper | Main | Radar | beam_color
+hotspot_helper | Main | Radar | label
+bite_timer | Main | Look | size
+bite_timer | Main | Look | sound | Sound on bite
+bite_timer | Main | Look | hide_at_bobber
+
+# command_suggestions
+command_suggestions | Main | Suggestions | command_suggestions
+
+# precision_mining
+precision_mining | Main | General | style
+precision_mining | Main | General | use_accent
+precision_mining | Main | General | color
+precision_mining | Main | General | size
+precision_mining | Main | General | feedback
+precision_mining | Main | General | crosshair
+
+# dungeon_party_finder
+dungeon_party_finder | Main | Colors | green
+dungeon_party_finder | Main | Colors | yellow
+dungeon_party_finder | Main | Colors | red
+dungeon_party_finder | Main | Colors | box
+dungeon_party_finder | Main | Colors | taken
+dungeon_party_finder | Main | On the head | floor_label
+dungeon_party_finder | Main | On the head | missing_classes
+dungeon_party_finder | Main | On the head | level_needed
+dungeon_party_finder | Main | Tooltip | tooltip_lines | | Missing classes, whether your class is free, and why you can't join.
+dungeon_party_finder | Main | Notes | dim_notes
+dungeon_party_finder | Main | Notes | note_words
+
+# loadout_keys
+loadout_keys | Main | General | hotbar_keys
+loadout_keys | Main | General | show_keys
+
+# dungeon_highlights
+dungeon_highlights | Main | Mobs | starred
+dungeon_highlights | Main | Look | starred_look
+dungeon_highlights | Main | Look | line_width
+dungeon_highlights | Main | Look | glow_size
+dungeon_highlights | Main | Mobs | starred_color
+dungeon_highlights | Main | Mobs | bats
+dungeon_highlights | Main | Mobs | bat_color
+dungeon_highlights | Main | Mobs | minibosses
+dungeon_highlights | Main | Mobs | miniboss_color
+dungeon_highlights | Main | Mobs | hide_unstarred_tags
+dungeon_highlights | Main | Teammates | teammates
+dungeon_highlights | Main | Teammates | teammate_names
+dungeon_highlights | Main | Teammates | hide_game_names
+
+# dungeon_doors
+dungeon_doors | Main | General | look
+dungeon_doors | Main | General | key_ready
+dungeon_doors | Main | General | no_key
+
+# dungeon_splits
+dungeon_splits | Main | General | show
+dungeon_splits | Main | General | compare
+dungeon_splits | Main | General | compare_with
+dungeon_splits | Main | General | reset_bests
+dungeon_splits | Main | General | summary
+dungeon_splits | Advanced | Boss | boss_phases
+dungeon_splits | Advanced | Boss | terminal_sections
+dungeon_splits | Main | Header | show_header_title
+dungeon_splits | Main | Header | show_header_status
+dungeon_splits | Main | Appearance | look_row
+
+# dungeon_map
+dungeon_map | Main | General | size
+dungeon_map | Main | General | room_name_show
+dungeon_map | Main | General | teammates
+dungeon_map | Main | General | player_names
+dungeon_map | Main | General | room_secrets
+dungeon_map | Main | General | count_over_check | | Where a room on the map is too small for both; off keeps the check.
+dungeon_map | Main | General | unopened
+dungeon_map | Main | Look | background
+dungeon_map | Main | Look | rotate
+dungeon_map | Main | Appearance | look_row
+
+# dungeon_score
+dungeon_score | Main | General | style
+dungeon_score | Main | General | show_marks
+dungeon_score | Main | General | show_max
+dungeon_score | Main | General | show_300
+dungeon_score | Main | General | aim
+dungeon_score | Main | Score | first_death
+dungeon_score | Main | Score | paul
+dungeon_score | Main | Score | alert
+dungeon_score | Main | Appearance | look_row
+
+# dungeon_announcements
+dungeon_announcements | Main | Fixed texts | mimic
+dungeon_announcements | Main | Fixed texts | prince
+dungeon_announcements | Main | Fixed texts | bat
+dungeon_announcements | Main | Your texts | score_270
+dungeon_announcements | Main | Your texts | text_270
+dungeon_announcements | Main | Your texts | preview_270
+dungeon_announcements | Main | Your texts | score_300
+dungeon_announcements | Main | Your texts | text_300
+dungeon_announcements | Main | Your texts | preview_300
+dungeon_announcements | Main | Your texts | leap
+dungeon_announcements | Main | Your texts | text_leap
+dungeon_announcements | Main | Your texts | preview_leap
+dungeon_announcements | Main | Sending | timing
+
+# dungeon_leap
+dungeon_leap | Main | General | keys
+dungeon_leap | Main | General | order
+dungeon_leap | Main | General | show_room
+dungeon_leap | Main | Custom order | custom_top_left
+dungeon_leap | Main | Custom order | custom_top_right
+dungeon_leap | Main | Custom order | custom_bottom_left
+dungeon_leap | Main | Custom order | custom_bottom_right
+
+# dungeon_chests
+dungeon_chests | Main | General | prices
+dungeon_chests | Main | General | breakdown
+
+# dungeon_boss
+dungeon_boss | Main | General | bear_color
+dungeon_boss | Main | Appearance | look_row
+
+# dungeon_livid
+dungeon_livid | Main | General | livid_color
+dungeon_livid | Main | General | hide_others | | The fakes and their name tags aren't drawn; nothing else changes.
+dungeon_livid | Main | Tracer | tracer
+dungeon_livid | Main | Tracer | tracer_color_from
+dungeon_livid | Main | Tracer | tracer_color
+dungeon_livid | Main | Tracer | tracer_width
+
+# dungeon_puzzles
+dungeon_puzzles | Main | Solvers | weirdos
+dungeon_puzzles | Main | Solvers | quiz
+dungeon_puzzles | Main | Solvers | answer_color
+dungeon_puzzles | Main | Solvers | quiz_chat
+dungeon_puzzles | Main | Solvers | blaze
+dungeon_puzzles | Main | Solvers | blaze_next
+dungeon_puzzles | Main | Look | style
+dungeon_puzzles | Main | Tic Tac Toe | click_now_color
+dungeon_puzzles | Main | Tic Tac Toe | show_next | | Weaker, the button you will most likely press after the game's reply.
+dungeon_puzzles | Main | Tic Tac Toe | next_color
+dungeon_puzzles | Main | Solvers | water_board
+dungeon_puzzles | Main | Solvers | teleport_maze
+dungeon_puzzles | Main | Solvers | tic_tac_toe
+dungeon_puzzles | Main | Solvers | creeper_beams
+dungeon_puzzles | Main | Solvers | boulder
+dungeon_puzzles | Main | Solvers | ice_fill
+dungeon_puzzles | Main | Solvers | ice_path
+
+# dungeon_blood_camp
+dungeon_blood_camp | Main | General | landing_color
+dungeon_blood_camp | Main | General | flying_color
+dungeon_blood_camp | Main | General | box_size
+dungeon_blood_camp | Main | General | show_countdown
+dungeon_blood_camp | Main | General | line
+dungeon_blood_camp | Main | General | ping_ahead | | Ahead of what you see by the mob's speed times your ping.
+dungeon_blood_camp | Main | Watcher | kill_title
+dungeon_blood_camp | Main | Watcher | learned
+dungeon_blood_camp | Advanced | Timing | spawn_tick
+dungeon_blood_camp | Advanced | Timing | offset_millis
+dungeon_blood_camp | Advanced | Timing | ping_offset
+dungeon_blood_camp | Main | Appearance | look_row
+
+# dungeon_auto_requeue
+dungeon_auto_requeue | Main | When | delay
+dungeon_auto_requeue | Main | When | min_party
+dungeon_auto_requeue | Main | When | not_leader
+dungeon_auto_requeue | Main | When | solo
+dungeon_auto_requeue | Main | When | stop_on_leave
+dungeon_auto_requeue | Main | When | after_failed
+dungeon_auto_requeue | Main | When | party_words | | Party chat: dt or downtime with a reason, undt, stop, and rq or requeue for the leader, after the Party commands prefix (!).
+dungeon_auto_requeue | Main | Shows | chat_line
+dungeon_auto_requeue | Main | Shows | say_why
+dungeon_auto_requeue | Main | Appearance | look_row
+
+# dungeon_abilities
+dungeon_abilities | Main | Alerts | ability_ready
+dungeon_abilities | Main | Alerts | ultimate_ready
+dungeon_abilities | Main | Alerts | use_ultimate | | Maxor enraged and the end of Goldor (Healer, Tank), the giants in F6, the start of Livid (Healer, Tank).
+dungeon_abilities | Main | Alerts | style
+
+# dungeon_invincibility
+dungeon_invincibility | Main | General | show
+dungeon_invincibility | Main | General | on_slot
+dungeon_invincibility | Main | Alerts | saved_alert
+dungeon_invincibility | Main | Alerts | ready_alert
+dungeon_invincibility | Main | Alerts | style
+dungeon_invincibility | Main | Alerts | announce | | Through the same slow queue as the announcements.
+dungeon_invincibility | Main | Appearance | look_row
+
+# dungeon_terminals
+dungeon_terminals | Main | General | look | | Lumio GUI: your click on a cell is exactly one click on that slot.
+dungeon_terminals | Main | General | hide_wrong
+dungeon_terminals | Main | General | rubix
+dungeon_terminals | Main | General | first_click
+dungeon_terminals | Main | General | sounds
+dungeon_terminals | Main | General | times
+dungeon_terminals | Main | Block wrong clicks | block_wrong_clicks | | Hold the key under Keys to click anyway.
+dungeon_terminals | Main | Block wrong clicks | blocked_sound
+
+# dungeon_f7
+dungeon_f7 | Main | General | unit
+dungeon_f7 | Main | General | titles
+dungeon_f7 | Main | Appearance | look_row
+
+# dungeon_f7_devices
+dungeon_f7_devices | Main | Devices | simon_says
+dungeon_f7_devices | Main | Devices | arrow_align
+dungeon_f7_devices | Main | Devices | lights
+dungeon_f7_devices | Main | Devices | sharpshooter
+dungeon_f7_devices | Main | Block wrong clicks | block_simon_says | | A click on a button that is not the next one is not sent. Hold the key under Keys to click anyway.
+dungeon_f7_devices | Main | Block wrong clicks | limit_start | | More presses there skip more rounds.
+dungeon_f7_devices | Main | Block wrong clicks | start_clicks
+dungeon_f7_devices | Main | Block wrong clicks | block_arrow_align
+dungeon_f7_devices | Main | Block wrong clicks | block_lights
+dungeon_f7_devices | Main | Block wrong clicks | blocked_sound
+
+# dungeon_practice
+dungeon_practice | Main | Practice | practice
+
+# dungeon_terracotta
+dungeon_terracotta | Main | Timer | timer
+dungeon_terracotta | Main | Timer | text_size
+dungeon_terracotta | Main | Colors | above_5_color
+dungeon_terracotta | Main | Colors | above_2_color
+dungeon_terracotta | Main | Colors | under_2_color
+
+# party_commands
+party_commands | Main | Who may ask | prefix
+party_commands | Main | Who may ask | allowed
+party_commands | Main | Who may ask | whitelist
+party_commands | Main | Who may ask | cooldown
+party_commands | Main | Who may ask | blocked
+party_commands | Main | Who may ask | guild_and_messages | | Info commands only; the leader's commands only from party chat.
+party_commands | Page Leader commands @people | Leader commands | command_warp
+party_commands | Page Leader commands @people | Leader commands | command_transfer
+party_commands | Page Leader commands @people | Leader commands | command_all_invite
+party_commands | Page Leader commands @people | Leader commands | command_kick
+party_commands | Page Leader commands @people | Leader commands | command_kick_offline
+party_commands | Page Leader commands @people | Leader commands | command_promote
+party_commands | Page Leader commands @people | Leader commands | command_demote
+party_commands | Page Leader commands @people | Leader commands | command_reinvite
+party_commands | Page Leader commands @people | Leader commands | command_floor
+party_commands | Page Info commands @info | Info commands | command_downtime
+party_commands | Page Info commands @info | Info commands | command_undowntime
+party_commands | Page Info commands @info | Info commands | command_coords
+party_commands | Page Info commands @info | Info commands | command_ping
+party_commands | Page Info commands @info | Info commands | command_tps
+party_commands | Page Info commands @info | Info commands | command_fps
+party_commands | Page Info commands @info | Info commands | command_time
+party_commands | Page Info commands @info | Info commands | command_help
+party_commands | Page Info commands @info | Info commands | command_dice
+
+# slot_binds
+slot_binds | Main | General | how_to
+slot_binds | Main | Bind sets | set_in_use
+slot_binds | Main | Bind sets | manage
+slot_binds | Main | Display | show
+slot_binds | Main | Display | line_color
+slot_binds | Main | Display | line_width
+
+# dungeon_alerts
+dungeon_alerts | Main | Room cleared | room_cleared
+dungeon_alerts | Main | Room cleared | room_cleared_show_as
+dungeon_alerts | Main | Room cleared | room_cleared_sound
+dungeon_alerts | Main | Room cleared | room_cleared_sound_kind
+dungeon_alerts | Main | Room cleared | room_cleared_volume
+dungeon_alerts | Main | Room cleared | room_cleared_seconds
+dungeon_alerts | Main | Room cleared | all_secrets
+dungeon_alerts | Main | Room cleared | special_rooms
+dungeon_alerts | Main | Key picked up | key_picked
+dungeon_alerts | Main | Key picked up | key_picked_show_as
+dungeon_alerts | Main | Key picked up | key_picked_sound
+dungeon_alerts | Main | Key picked up | key_picked_sound_kind
+dungeon_alerts | Main | Key picked up | key_picked_volume
+dungeon_alerts | Main | Key picked up | key_picked_seconds
+
+# powder_helper
+powder_helper | Main | HUD | powder
+powder_helper | Main | HUD | compact
+powder_helper | Main | HUD | background
+powder_helper | Main | HUD | only_mining
+powder_helper | Advanced | Tracker | tracker
+powder_helper | Advanced | Tracker | range
+powder_helper | Advanced | Tracker | chests_opened
+powder_helper | Advanced | Tracker | chests_per_hour
+powder_helper | Advanced | Tracker | powder_per_chest
+powder_helper | Advanced | Tracker | double_powder
+powder_helper | Advanced | Reset | reset_session
+powder_helper | Advanced | Reset | reset_today
+powder_helper | Advanced | Reset | reset_lifetime
+powder_helper | Main | Chests | chest_highlight
+powder_helper | Advanced | Chests | chest_color
+powder_helper | Advanced | Chests | line_width
+powder_helper | Advanced | Chests | chest_fill
+powder_helper | Main | Chests | despawn_timer
+powder_helper | Main | Chests | chest_alert
+powder_helper | Main | Tracer | tracer
+powder_helper | Advanced | Tracer | tracer_color
+powder_helper | Main | Appearance | look_row
+
+# crystal_hollows_map
+crystal_hollows_map | Main | Map | size
+crystal_hollows_map | Main | Map | opacity
+crystal_hollows_map | Main | Map | show_names
+crystal_hollows_map | Main | Map | quadrant_labels
+crystal_hollows_map | Main | Map | my_coords
+crystal_hollows_map | Main | Map | party
+crystal_hollows_map | Main | Waypoints | waypoints
+crystal_hollows_map | Main | Sharing | share_to
+crystal_hollows_map | Page Places in this lobby @map > Map | Places in this lobby | found_jungle_temple
+crystal_hollows_map | Page Places in this lobby @map > Map | Places in this lobby | found_mines_of_divan
+crystal_hollows_map | Page Places in this lobby @map > Map | Places in this lobby | found_goblin_queens_den
+crystal_hollows_map | Page Places in this lobby @map > Map | Places in this lobby | found_lost_precursor_city
+crystal_hollows_map | Page Places in this lobby @map > Map | Places in this lobby | found_khazad_dum
+crystal_hollows_map | Page Places in this lobby @map > Map | Places in this lobby | found_fairy_grotto
+crystal_hollows_map | Page Places in this lobby @map > Map | Places in this lobby | found_dragons_lair
+crystal_hollows_map | Page Places in this lobby @map > Map | Places in this lobby | found_goblin_king
+crystal_hollows_map | Page Places in this lobby @map > Map | Places in this lobby | found_odawa
+crystal_hollows_map | Page Places in this lobby @map > Map | Places in this lobby | found_key_guardian
+crystal_hollows_map | Page Places in this lobby @map > Map | Places in this lobby | found_corleone
+crystal_hollows_map | Page Places in this lobby @map > Map | Places in this lobby | clear_lobby
+crystal_hollows_map | Page Colors @palette > Appearance | Colors | color_jungle_temple
+crystal_hollows_map | Page Colors @palette > Appearance | Colors | color_mines_of_divan
+crystal_hollows_map | Page Colors @palette > Appearance | Colors | color_goblin_queens_den
+crystal_hollows_map | Page Colors @palette > Appearance | Colors | color_lost_precursor_city
+crystal_hollows_map | Page Colors @palette > Appearance | Colors | color_khazad_dum
+crystal_hollows_map | Page Colors @palette > Appearance | Colors | color_fairy_grotto
+crystal_hollows_map | Page Colors @palette > Appearance | Colors | color_dragons_lair
+crystal_hollows_map | Page Colors @palette > Appearance | Colors | color_goblin_king
+crystal_hollows_map | Page Colors @palette > Appearance | Colors | color_odawa
+crystal_hollows_map | Page Colors @palette > Appearance | Colors | color_key_guardian
+crystal_hollows_map | Page Colors @palette > Appearance | Colors | color_corleone
+crystal_hollows_map | Main | Appearance | look_row
+
+# inventory_buttons
+inventory_buttons | Main | Shows | in_inventory
+inventory_buttons | Main | Shows | in_chests
+inventory_buttons | Main | Shows | only_skyblock
+inventory_buttons | Main | Shows | outside
+inventory_buttons | Main | Shows | hide_pencil
+inventory_buttons | Main | Look | size
+inventory_buttons | Main | Look | look
+inventory_buttons | Main | Look | icon_glow
+inventory_buttons | Main | Look | name_on_hover
+inventory_buttons | Main | Click | close_after
+inventory_buttons | Main | Click | click_sound
+inventory_buttons | Main | Sets | per_profile
+inventory_buttons | Main | Shows | edit_row
+inventory_buttons | Main | Sets | starter_row
+inventory_buttons | Main | Sets | share_row
+inventory_buttons | Main | Sets | remove_row
+
+# dungeon_terminal_status
+dungeon_terminal_status | Main | Appearance | look_row
+
+# Tooltips of pages laid out in code: names only, the layout stays.
+corpse_highlight | Name | - | waypoints | | Also those shared by SkyHanni.

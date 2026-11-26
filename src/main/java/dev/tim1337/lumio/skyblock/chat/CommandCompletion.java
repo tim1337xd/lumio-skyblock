@@ -24,7 +24,9 @@ public final class CommandCompletion {
 		/** Only the friends seen. */
 		FRIENDS,
 		RECIPES,
-		SACKS
+		SACKS,
+		/** The Abiphone's contacts, for /call: the player's own first ({@link ContactCompletion}). */
+		CONTACTS
 	}
 
 	/** Characters after which a word starts inside an entry: "ENCHANTED_DIAMOND" has "DIAMOND" as a word. */

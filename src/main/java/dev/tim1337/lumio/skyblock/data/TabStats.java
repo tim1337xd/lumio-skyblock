@@ -1,7 +1,8 @@
 package dev.tim1337.lumio.skyblock.data;
 
 import dev.tim1337.lumio.api.TabCard;
-import dev.tim1337.lumio.api.experimental.util.Debug;
+import dev.tim1337.lumio.api.experimental.debug.DebugHooks;
+import dev.tim1337.lumio.skyblock.SkyBlockDebug;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -112,7 +113,9 @@ public final class TabStats {
 
 	private static void logUnknown(String label) {
 		if (LOGGED.size() < MOST_LOGGED && LOGGED.add(label)) {
-			Debug.log("Tab list: \"{}\" is not a known stat, shown under {}", label, OTHER);
+			if (DebugHooks.ACTIVE) {
+				DebugHooks.log(SkyBlockDebug.TAB, "Tab list: \"{}\" is not a known stat, shown under {}", label, OTHER);
+			}
 		}
 	}
 }

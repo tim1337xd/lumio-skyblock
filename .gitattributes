@@ -7,3 +7,10 @@
 # These are Windows script files and should use crlf
 *.bat           text eol=crlf
 
+
+# draft release notes stay in the -dev repo, out of the public export
+/release export-ignore
+# development files stay out of the public source
+/dev export-ignore
+/src/gametest export-ignore
+/gametest.gradle export-ignore

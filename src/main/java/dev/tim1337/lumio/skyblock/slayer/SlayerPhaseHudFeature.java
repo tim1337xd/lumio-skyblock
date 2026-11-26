@@ -1,12 +1,13 @@
 package dev.tim1337.lumio.skyblock.slayer;
 
-import dev.tim1337.lumio.api.experimental.util.Debug;
+import dev.tim1337.lumio.api.experimental.debug.DebugHooks;
+import dev.tim1337.lumio.skyblock.SkyBlockDebug;
+import dev.tim1337.lumio.api.experimental.draw.Radius;
 import dev.tim1337.lumio.api.draw.Canvas;
 import dev.tim1337.lumio.api.experimental.draw.Draw;
 import dev.tim1337.lumio.api.experimental.draw.HudTheme;
 import dev.tim1337.lumio.api.experimental.hud.HudEditor;
 import dev.tim1337.lumio.api.feature.AddonPanel;
-import dev.tim1337.lumio.api.feature.SettingGroup;
 import dev.tim1337.lumio.api.setting.Choice;
 import dev.tim1337.lumio.api.setting.TextInput;
 import dev.tim1337.lumio.api.setting.Toggle;
@@ -41,9 +42,9 @@ public class SlayerPhaseHudFeature extends AddonPanel {
 	private final Toggle showHealth = add(make().toggle("show_health", Component.literal("Boss health"), true), "Phase display");
 	private final Toggle showPhase = add(make().toggle("show_phase", Component.literal("Phase"), true), "Phase display");
 	private final Toggle showTimer = add(make().toggle("show_timer", Component.literal("Timer"), true), "Phase display");
-	private final Toggle showBossesRate = add(make().toggle("show_bosses_rate", Component.literal("Bosses/h"), true), "Phase display");
-	private final Toggle showAvgKill = add(make().toggle("show_avg_kill", Component.literal("Avg kill"), true), "Phase display");
-	private final Toggle showCoinsRate = add(make().toggle("show_coins_rate", Component.literal("Coins/h"), false), "Phase display");
+	private final Toggle showBossesRate = add(make().toggle("show_bosses_rate", Component.literal("Bosses per hour"), true), "Phase display");
+	private final Toggle showAvgKill = add(make().toggle("show_avg_kill", Component.literal("Average kill"), true), "Phase display");
+	private final Toggle showCoinsRate = add(make().toggle("show_coins_rate", Component.literal("Coins per hour"), false), "Phase display");
 	private final Toggle showNextBoss = add(make().toggle("show_next_boss", Component.literal("Next boss"), true), "Phase display");
 	private final Toggle showSessionTotal = add(make().toggle("show_session_total", Component.literal("Session total"), false), "Phase display");
 	/** The stat tiles in their order. */
@@ -55,6 +56,12 @@ public class SlayerPhaseHudFeature extends AddonPanel {
 
 	{
 		carryName.under(carryMode);
+		// the simple row has only the boss, its health and its timer
+		showPhase.visibleWhen(() -> !simple());
+		showNextBoss.visibleWhen(() -> !simple());
+		for (Toggle tile : tiles) {
+			tile.visibleWhen(() -> !simple());
+		}
 	}
 
 	@Override
@@ -71,7 +78,7 @@ public class SlayerPhaseHudFeature extends AddonPanel {
 	private final Spring shownHealth = Spring.smooth(Spring.SNAPPY);
 
 	public SlayerPhaseHudFeature() {
-		super("slayer_phase", "Slayer HUD", "The slayer panel: your boss with its phase, health and timer, and your slayer stats.", false, Anchor.LEFT, false,
+		super("slayer_phase", "Slayer HUD", "Your boss's phase, health and timer.", false, Anchor.LEFT, false,
 			200f, 120f);
 		offerCardSize();
 		iconRgb(SystemColors.RED_RGB);
@@ -441,7 +448,7 @@ public class SlayerPhaseHudFeature extends AddonPanel {
 				if (i == phases.step()) {
 					ui.roundedSmooth(x - 0.5f, y - 0.5f, PILL_WIDTH + 1f, PILL_HEIGHT + 1f, (PILL_HEIGHT + 1f) / 2f, color);
 				} else {
-					ui.roundedSmooth(x, y, PILL_WIDTH, PILL_HEIGHT, PILL_HEIGHT / 2f, Draw.withOpacity(color, i < phases.step() ? PILL_DONE : PILL_TO_COME));
+					ui.roundedSmooth(x, y, PILL_WIDTH, PILL_HEIGHT, Radius.box(PILL_HEIGHT), Draw.withOpacity(color, i < phases.step() ? PILL_DONE : PILL_TO_COME));
 				}
 				x += PILL_WIDTH + PILL_GAP;
 			}
@@ -586,7 +593,9 @@ public class SlayerPhaseHudFeature extends AddonPanel {
 			progress = SlayerProgress.of(line);
 			if (progress.state() == SlayerProgress.State.UNKNOWN && !line.equals(unknownNoted)) {
 				unknownNoted = line;
-				Debug.log("A slayer quest line that is not known: {}", line);
+				if (DebugHooks.ACTIVE) {
+					DebugHooks.log(SkyBlockDebug.SLAYER, "A slayer quest line that is not known: {}", line);
+				}
 			}
 		}
 		return progress;

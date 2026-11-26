@@ -74,6 +74,11 @@ final class StoragePanel {
 		}
 	}
 
+	/** @return where the panel is drawn: x, y, width, height (no width when it has no room) */
+	int[] box() {
+		return box;
+	}
+
 	/** Places the panel at the inventory's top, in the room beside it; where it does not fit even with its smallest slots, only the inventory stays. */
 	void place(int x, int y, int roomWidth) {
 		if (roomWidth != gridRoom) {
@@ -223,7 +228,7 @@ final class StoragePanel {
 		int width = Math.round(ui.widthScaled(label, TextScale.SMALL)) + BUTTON_ICON + BUTTON_ICON_GAP + 2 * BUTTON_PAD;
 		setBox(toggleBox, box[0] + box[2] - BUTTON_RIGHT - width, box[1] + BUTTON_TOP, width, BUTTON_HEIGHT);
 		boolean over = PanelKit.inside(toggleBox, mouseX, mouseY);
-		ui.roundedSmooth(toggleBox[0], toggleBox[1], width, BUTTON_HEIGHT, BUTTON_HEIGHT / 2f, Draw.withOpacity(HudTheme.text(), over ? 0.2f : 0.09f));
+		ui.roundedSmooth(toggleBox[0], toggleBox[1], width, BUTTON_HEIGHT, Radius.box(BUTTON_HEIGHT), Draw.withOpacity(HudTheme.text(), over ? 0.2f : 0.09f));
 		int color = Draw.withOpacity(HudTheme.text(), over ? 1f : 0.85f);
 		ui.textAtScaled(label, toggleBox[0] + BUTTON_PAD, toggleBox[1] + BUTTON_HEIGHT / 2f - 4.5f * TextScale.SMALL, TextScale.SMALL, color);
 		var pose = graphics.pose();

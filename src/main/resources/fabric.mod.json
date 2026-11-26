@@ -19,8 +19,8 @@
 		"lumio-skyblock.mixins.json"
 	],
 	"depends": {
-		"lumio": ">=1.0.0-beta.1",
-		"lumio-api": ">=1.7.0 <2.0.0",
+		"lumio": ">=1.0.0-beta.2",
+		"lumio-api": ">=1.29.0 <2.0.0",
 		"fabricloader": ">=0.20.1",
 		"minecraft": "~26.2",
 		"java": ">=25",
@@ -28,7 +28,8 @@
 	},
 	"custom": {
 		"lumio:build": "${build}",
-		"lumio:api": ">=1.4.0 <2.0.0",
+		"lumio:release": ${release},
+		"lumio:api": ">=1.29.0 <2.0.0",
 		"modmenu": {
 			"parent": "lumio"
 		}

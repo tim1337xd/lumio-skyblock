@@ -1,19 +1,20 @@
 package dev.tim1337.lumio.skyblock.slayer;
 
+import dev.tim1337.lumio.api.MainSettings;
+import dev.tim1337.lumio.api.draw.Canvas;
+import dev.tim1337.lumio.api.experimental.debug.DebugHooks;
 import dev.tim1337.lumio.api.experimental.draw.Draw;
 import dev.tim1337.lumio.api.experimental.draw.HudTheme;
-import dev.tim1337.lumio.api.MainSettings;
 import dev.tim1337.lumio.api.experimental.draw.Radius;
 import dev.tim1337.lumio.api.experimental.draw.TextScale;
-import dev.tim1337.lumio.api.experimental.util.Logs;
+import dev.tim1337.lumio.api.experimental.draw.WorldLabel;
 import dev.tim1337.lumio.api.experimental.util.Sight;
-import dev.tim1337.lumio.api.draw.Canvas;
+import dev.tim1337.lumio.skyblock.SkyBlockDebug;
 import dev.tim1337.lumio.skyblock.data.DropMessage;
 import dev.tim1337.lumio.skyblock.data.DropPriceIds;
 import dev.tim1337.lumio.skyblock.data.ItemGains;
 import dev.tim1337.lumio.skyblock.data.SkyBlock;
 import dev.tim1337.lumio.skyblock.data.SkyBlockArea;
-import dev.tim1337.lumio.skyblock.world.WorldLabel;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -149,8 +150,9 @@ final class BossDropGlow {
 			New item = it.next().getValue();
 			boolean gone = item.item.isRemoved();
 			if (gone || tick - item.tick > LOOK_TICKS) {
-				if (owner.dropDebug()) {
-					Logs.info("Drop check: \"{}\" ({}): not highlighted, {}{}", item.name, item.id, item.verdict.why, gone ? " (picked up or gone)" : " (no longer looked at)");
+				if (DebugHooks.wants(SkyBlockDebug.DROPS)) {
+					DebugHooks.log(SkyBlockDebug.SLAYER, "Drop check: \"{}\" ({}): not highlighted, {}{}", item.name, item.id, item.verdict.why,
+						gone ? " (picked up or gone)" : " (no longer looked at)");
 				}
 				it.remove();
 				continue;
@@ -188,8 +190,8 @@ final class BossDropGlow {
 		int color = colorOf(shown);
 		int rarity = color == NO_COLOR ? BossDrops.UNKNOWN_RARITY : DropPriceIds.rarity(0xFF000000 | color);
 		kept.put(item.item.getId(), new Kept(item.item, rarity == COMMON || color == NO_COLOR ? COMMON_GRAY : color, BossDrops.labeled(rarity) ? item.name : null));
-		if (owner.dropDebug()) {
-			Logs.info("Drop check: \"{}\" ({}): highlighted, {}", item.name, item.id, item.verdict.why);
+		if (DebugHooks.wants(SkyBlockDebug.DROPS)) {
+			DebugHooks.log(SkyBlockDebug.SLAYER, "Drop check: \"{}\" ({}): highlighted, {}", item.name, item.id, item.verdict.why);
 		}
 	}
 
@@ -264,7 +266,7 @@ final class BossDropGlow {
 			if (label != null && WorldLabel.project(client, x, y + LABEL_ABOVE, z, screen)) {
 				float width = ui.boldWidthScaled(label, TextScale.SMALL) + 2f * LABEL_PAD;
 				WorldLabel.draw(graphics, screen, width, LABEL_HEIGHT, 1f, () -> {
-					canvas.roundedSmooth(0f, 0f, width, LABEL_HEIGHT, Radius.pill(LABEL_HEIGHT), Draw.withOpacity(0xFF0A0A10, LABEL_OPACITY));
+					canvas.roundedSmooth(0f, 0f, width, LABEL_HEIGHT, Radius.box(LABEL_HEIGHT), Draw.withOpacity(0xFF0A0A10, LABEL_OPACITY));
 					canvas.textAtScaledBold(label, LABEL_PAD, 3f, TextScale.SMALL, HudTheme.readable(0xFF000000 | drop.rgb()));
 				});
 			}

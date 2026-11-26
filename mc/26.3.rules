@@ -39,6 +39,7 @@ Lcom/mojang/blaze3d/buffers/GpuBufferSlice; => Lcom/mojang/renderpearl/api/buffe
 ~ , false, GpuFormat\.(\w+)\) => , GpuFormat.$1, null)
 ~ \.mulPose\(new Quaternionf => .rotate(new Quaternionf
 ~ \.mulPose\(Axis => .rotate(Axis
+~ \.mulPose\(camera\.rotation\(\)\) => .rotate(camera.rotation())
 import net.minecraft.client.renderer.rendertype.OutputTarget; =>
 ~ \s*\.setOutputTarget\(OutputTarget\.MAIN_TARGET\) =>
 

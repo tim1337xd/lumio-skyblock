@@ -15,7 +15,8 @@ public final class ExplosionsHiderFeature extends AddonFeature {
 	private final dev.tim1337.lumio.api.setting.InfoLine about = add(dev.tim1337.lumio.skyblock.SkyBlockAddon.make().info("about", net.minecraft.network.chat.Component.literal(""), () -> "Explosions you can't do anything about are not drawn. It works by itself."));
 
 	public ExplosionsHiderFeature() {
-		super("explosions_hider", "Explosions Hider", "Hides the particles of explosions and the poof, only on SkyBlock.", false);
+		super("explosions_hider", "Explosions Hider", "Hides explosion particles on SkyBlock.", false);
+		pageGroup("Visual");
 		iconRgb(SystemColors.ORANGE_RGB);
 		iconName("sparkle");
 		summary("Hides the particles of explosions and the poof");

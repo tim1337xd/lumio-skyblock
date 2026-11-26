@@ -1,5 +1,7 @@
 package dev.tim1337.lumio.skyblock.slayer;
 
+import dev.tim1337.lumio.api.experimental.util.TextColors;
+
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -22,8 +24,7 @@ final class BossDrops {
 
 	private static final Pattern AMOUNT_AT_END = Pattern.compile("\\s+x?\\d{1,5}$");
 	private static final Pattern AMOUNT_IN_FRONT = Pattern.compile("^\\d{1,5}x?\\s+");
-	/** Color codes, and signs in front of a name or behind it, such as a rune's "◆" or a star. */
-	private static final Pattern COLOR_CODES = Pattern.compile("§.");
+	/** Signs in front of a name or behind it, such as a rune's "◆" or a star. */
 	private static final Pattern SIGNS_AROUND = Pattern.compile("^[^\\p{L}\\p{N}]+|[^\\p{L}\\p{N}']+$");
 	private static final Pattern LEVEL_AT_END = Pattern.compile("\\s+[ivxlc]{1,7}$");
 	private static final List<String> BOOK_PREFIXES = List.of("enchanted book");
@@ -52,7 +53,7 @@ final class BossDrops {
 
 	/** @return an item's name to compare, in whatever format it comes: in lower case, without color codes, signs around it or an amount */
 	static String nameKey(String name) {
-		String plain = SIGNS_AROUND.matcher(COLOR_CODES.matcher(name).replaceAll("").strip()).replaceAll("");
+		String plain = SIGNS_AROUND.matcher(TextColors.noColors(name).strip()).replaceAll("");
 		return AMOUNT_IN_FRONT.matcher(AMOUNT_AT_END.matcher(plain).replaceAll("")).replaceAll("").toLowerCase(Locale.ROOT);
 	}
 

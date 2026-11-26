@@ -1,5 +1,7 @@
 package dev.tim1337.lumio.skyblock.data;
 
+import dev.tim1337.lumio.api.experimental.util.TextColors;
+
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -21,7 +23,6 @@ public final class RepoRecipes {
 		ITEM, MOB, NPC
 	}
 
-	private static final Pattern COLOR = Pattern.compile("§.");
 	private static final Pattern WHAT_IT_IS = Pattern.compile("\\s*\\((?:NPC|Monster|Boss|Miniboss|Animal|Sea Creature)\\)$");
 	private static final String CRAFTING_TABLE = "Crafting table";
 	private static final String THE_FORGE = "The Forge";
@@ -212,7 +213,7 @@ public final class RepoRecipes {
 	}
 
 	private static String plain(String text) {
-		return COLOR.matcher(text).replaceAll("").strip();
+		return TextColors.noColors(text).strip();
 	}
 
 	/** @return a mob's or NPC's name without colors and without the word that says what it is */

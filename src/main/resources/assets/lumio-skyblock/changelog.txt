@@ -1,4 +1,35 @@
-## 1.0.0 Beta
+## 1.0.0-beta.2 | 2026-11-25
+> ! Coming from Beta 1? Install this one by hand once: replace the old jar. From Beta 2 on, Lumio tells you about new versions itself.
+> Second beta: dungeons, the Party Finder Helper, fishing alerts and a calmer item search.
+# highlight
++ Dungeons: map, score, splits, puzzle solvers, practice; F7/M7 in progress @dungeon_map
+# highlight
++ Party Finder Helper: which parties fit you, at a glance @dungeon_party_finder
+# highlight
++ Fishing alerts and a Hotspot helper; every sea creature is known @fishing_alerts
++ Powder Helper and a Crystal Hollows map of your lobby @crystal_hollows_map
++ Inventory buttons: your own commands around the inventory @inventory_buttons
++ Party commands, slot binds, loadout keys, a pickup log and Farming Keys @party_commands
++ Auto Requeue: the next run after a delay you can cancel @dungeon_auto_requeue
++ Pest highlight: a glow on the pests you can see @pest_highlight
++ Bite timer: the bite countdown at your bobber, large on screen @bite_timer
+# highlight
+* Item search: calm panels moved by their grip, Pinned and Recent, a new item window @item_list
+* Item tooltips: price lines only show when they have a number
+* Settings in named groups with help on hover; a fresh install starts with new defaults
+* Keys: none set at first; pick the ones you want @command_keybinds
+* Corpses: their value in chat, a clearer panel and chest profit
+* Mouse lock locks by itself on a plot, without flicker on jumps @mouse_lock
+* Sea creatures nearby alert only once you can see them @fishing_alerts
+* Updates come through Lumio, checked with its signature; nothing downloads without your click
+* Profit trackers count the shards you charm, catch or get from a loot share
+! Profit trackers count rare drops, loot shares and RNG meter drops once, books by their enchantment, and no longer count crafted, compacted or moved items
+! Prices for Bazaar items, enchanted books, pets and runes in tooltips, the item window and pinned items
+! Fishing trackers work on every island and count new creatures
+! Item search: matches light up only in highlight mode
+! Smaller fixes for the pickaxe timer, storage, arrows, splits, enchant colors and tab list
+
+## 1.0.0-beta.1 | 2026-11-07
 + Panels: pet, equipment, arrows, profits with table and dragons
 + Item search with recipes and drops; a calm storage overlay
 + Wardrobe overlay: your character in every armor set
@@ -6,6 +37,6 @@
 + Slayer: phases at your boss, highlights, drops, the beacon
 + Mining, fishing and farming helpers, Break Reset Fix, corpses
 + Item tooltips: market, bazaar and dungeon lines; enchant colors
-+ A SkyBlock chat tab, drop toasts and command suggestions
++ A SkyBlock chat tab, drop alerts and command suggestions
 + Item protection: your best items can't be given away by accident
 + Scoreboard, Speed bar, Etherwarp, Keep Terrain Loaded, hook timer

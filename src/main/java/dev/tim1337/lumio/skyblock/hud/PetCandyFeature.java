@@ -37,10 +37,11 @@ public final class PetCandyFeature extends AddonFeature {
 	private final Toggle hideOnMax = add(make().toggle("hide_on_max", Component.literal("Hide on max level pets"), true), "Pets");
 
 	public PetCandyFeature() {
-		super("pet_candy", "Pet Candy Used", "How much Pet Candy a pet has used, in the corner of its slot.", true);
+		super("pet_candy", "Pet Candy Used", "Pet Candy used, on the pet's slot.", true);
+		pageGroup("Items and inventory");
 		iconRgb(SystemColors.RED_RGB);
 		iconName("gem");
-		summary("How much Pet Candy a pet has used, in the corner of its slot");
+		summary("Pet Candy used, on the pet's slot");
 	}
 
 	/** Draws over every container screen as it opens. Called during mod initialization. */

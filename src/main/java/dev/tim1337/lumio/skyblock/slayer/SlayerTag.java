@@ -22,10 +22,18 @@ record SlayerTag(Entity entity, String text) {
 			if (text == null || text.isBlank()) {
 				continue;
 			}
-			for (String line : text.split("\n")) {
+			// the lines cut at the line breaks without split's array: this runs for every entity near the player, every tick while a boss is up
+			int start = 0;
+			while (start <= text.length()) {
+				int end = text.indexOf('\n', start);
+				if (end < 0) {
+					end = text.length();
+				}
+				String line = text.substring(start, end);
 				if (!line.isBlank()) {
 					tags.add(new SlayerTag(entity, line));
 				}
+				start = end + 1;
 			}
 		}
 		return tags;

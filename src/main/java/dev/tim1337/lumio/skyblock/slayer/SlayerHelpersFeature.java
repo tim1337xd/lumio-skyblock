@@ -38,7 +38,7 @@ public class SlayerHelpersFeature extends AddonFeature {
 	}
 
 	public SlayerHelpersFeature() {
-		super("slayer_helpers", "Slayer helpers", "Helpers for every slayer: a reminder when your Gummy Polar Bear runs out.", false);
+		super("slayer_helpers", "Slayer helpers", "A reminder when Gummy Polar Bear runs out.", false);
 		iconRgb(SystemColors.RED_RGB);
 		iconName("sword");
 		summary("Gummy Polar Bear reminder");

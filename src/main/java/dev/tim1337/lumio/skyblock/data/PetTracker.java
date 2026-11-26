@@ -1,6 +1,8 @@
 package dev.tim1337.lumio.skyblock.data;
 
-import dev.tim1337.lumio.api.experimental.util.Debug;
+import dev.tim1337.lumio.api.experimental.debug.DebugHooks;
+import dev.tim1337.lumio.api.experimental.util.TextColors;
+import dev.tim1337.lumio.skyblock.SkyBlockDebug;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -56,7 +58,6 @@ public final class PetTracker {
 	private static final Pattern DESPAWNED = Pattern.compile("You despawned your (.+?)\\s*[✦⭐★]?\\s*!");
 	private static final Pattern AUTOPET = Pattern.compile("Autopet\\s+equipped\\s+your\\s+(?:\\[Lvl\\s*(\\d{1,4})]\\s*)?(.+?)\\s*[✦⭐★]?\\s*!");
 	private static final Pattern LEVEL_UP = Pattern.compile("Your (.+?) leveled up to level (\\d{1,4})!");
-	private static final Pattern PETS_MENU = Pattern.compile("^(?:\\(\\d+/\\d+\\) )?Pets(?: \\(\\d+/\\d+\\))?$");
 	private static final Pattern HOVER_NAME = Pattern.compile("^(?:⭐\\s*)?\\[Lvl\\s+(\\d+)]\\s*(.+?)(?:\\s*✦)?$");
 
 	private static volatile Pet current;
@@ -242,6 +243,11 @@ public final class PetTracker {
 	}
 
 	/** @return the active pet, or null if there is none or it is unknown */
+	/** @return the profile played, as the server named it, or null */
+	public static String profileName() {
+		return profile;
+	}
+
 	public static Pet current() {
 		return current;
 	}
@@ -448,6 +454,11 @@ public final class PetTracker {
 
 	private static final Pattern TAB_PET = Pattern.compile("^\\[Lvl (\\d+)] (.+?)(?: ✦)?$");
 	private static long lastTab;
+	/** The pet the player list's widget showed last, its level, and when; for the Pets menu where no item says which pet is out. */
+	private static String tabPetName;
+	private static int tabPetLevel;
+	private static long tabPetSeen;
+	private static final long TAB_PET_FRESH_MILLIS = 5_000;
 	/** The widget line under the pet: its experience toward the next level ("1,243,580/1,822,050 XP (68.3%)"), or that it is at its top level. */
 	private static final Pattern TAB_XP = Pattern.compile("^([\\d,.]{1,16}[kKmMbB]?)/([\\d,.]{1,16}[kKmMbB]?) XP \\((\\d{1,3}(?:\\.\\d{1,3})?)%\\)$");
 	private static final String TAB_MAX = "MAX LEVEL";
@@ -520,6 +531,9 @@ public final class PetTracker {
 			if (matcher.matches()) {
 				String name = cleanName(matcher.group(2));
 				int level = Integer.parseInt(matcher.group(1));
+				tabPetName = name;
+				tabPetLevel = level;
+				tabPetSeen = now;
 				SkyBlock.evidence(60_000);
 				if (current == null || !current.name().equalsIgnoreCase(name) || current.level() != level || (!current.icon().isEmpty() && hasSkin(current) != text.contains("✦"))) {
 					int color = colorOf(shown, name);
@@ -531,6 +545,7 @@ public final class PetTracker {
 				continue;
 			}
 			if (text.toLowerCase(Locale.ROOT).startsWith("no pet")) {
+				tabPetName = null;
 				if (current != null) {
 					set(null);
 				}
@@ -579,6 +594,59 @@ public final class PetTracker {
 		}
 	}
 
+	private static long lastHeadScan;
+	/** How far the pet's head floats from its name tag at most, in blocks (squared), and how often it is looked for. */
+	private static final double HEAD_REACH_SQ = 2.5 * 2.5;
+	private static final long HEAD_SCAN_MILLIS = 1500L;
+
+	/**
+	 * The pet that is out floats beside its owner as a small armor stand wearing its head, under its name tag. Where the Pets menu has not shown this
+	 * pet's head yet, the head it wears there is remembered for it (a head from the menu is never replaced by this). Only the name tag with the
+	 * player's own name counts, and only what the game already drew.
+	 */
+	private static void scanOwnHead(Minecraft client) {
+		long now = System.currentTimeMillis();
+		if (now - lastHeadScan < HEAD_SCAN_MILLIS || client.player == null || client.level == null || current == null) {
+			return;
+		}
+		lastHeadScan = now;
+		if (PetIcons.heads().source(profile, baseName(current.name()), current.color()) == PetHeads.Source.MENU) {
+			return;
+		}
+		String owner = client.player.getName().getString();
+		Entity tagged = null;
+		for (Entity entity : client.level.entitiesForRendering()) {
+			if (!entity.hasCustomName() || entity.distanceToSqr(client.player) > 20.0 * 20.0) {
+				continue;
+			}
+			Matcher matcher = NAME_TAG.matcher(entity.getCustomName().getString().strip());
+			if (matcher.find() && matcher.group(2).strip().equalsIgnoreCase(owner)
+				&& baseName(cleanName(matcher.group(3))).equalsIgnoreCase(baseName(current.name()))) {
+				tagged = entity;
+				break;
+			}
+		}
+		if (tagged == null) {
+			return;
+		}
+		String nearest = "";
+		double nearestSq = HEAD_REACH_SQ;
+		for (Entity entity : client.level.entitiesForRendering()) {
+			if (!(entity instanceof net.minecraft.world.entity.decoration.ArmorStand stand) || entity == tagged) {
+				continue;
+			}
+			double distance = entity.distanceToSqr(tagged);
+			String head = distance < nearestSq ? SkullTextures.propertyOf(stand.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD)) : "";
+			if (!head.isEmpty()) {
+				nearest = head;
+				nearestSq = distance;
+			}
+		}
+		if (PetIcons.heads().seen(profile, baseName(current.name()), current.color(), nearest, PetHeads.Source.WORLD)) {
+			changes++;
+		}
+	}
+
 	/** Whether the pet is needed right now (the pet panel or the table's reminder is on); otherwise the player list and name tags are not scanned. */
 	private static BooleanSupplier wanted = () -> true;
 
@@ -594,9 +662,11 @@ public final class PetTracker {
 			scanTabList(client);
 			if (current == null) {
 				scanNameTags(client);
+			} else {
+				scanOwnHead(client);
 			}
 		}
-		if (!(client.gui.screen() instanceof AbstractContainerScreen<?> screen) || client.level == null || !PETS_MENU.matcher(screen.getTitle().getString()).matches()) {
+		if (!(client.gui.screen() instanceof AbstractContainerScreen<?> screen) || client.level == null || !PetMenu.isTitle(TextColors.noColors(screen.getTitle().getString()))) {
 			return;
 		}
 		long now = System.currentTimeMillis();
@@ -608,6 +678,7 @@ public final class PetTracker {
 		// container part only: the last 36 slots are the player inventory
 		int chest = Math.max(0, slots.size() - 36);
 		Pet active = null;
+		String activeHead = "";
 		for (int i = 0; i < chest; i++) {
 			Slot slot = slots.get(i);
 			Pet pet = read(slot.getItem());
@@ -616,9 +687,16 @@ public final class PetTracker {
 			}
 			PetIcons.seen(slot.getItem());
 			remember(pet);
+			// the head the menu shows for this pet (its skin's): remembered per profile and pet, the pet that is out last so it wins among its kind
+			String head = SkullTextures.propertyOf(slot.getItem());
+			PetIcons.heads().seen(profile, baseName(pet.name()), pet.color(), head, PetHeads.Source.MENU);
 			if (isEquipped(slot.getItem())) {
 				active = pet;
+				activeHead = head;
 			}
+		}
+		if (active != null) {
+			PetIcons.heads().seen(profile, baseName(active.name()), active.color(), activeHead, PetHeads.Source.MENU);
 		}
 		if (active != null || SEEN.size() > 0) {
 			SkyBlock.evidence(120_000);
@@ -629,6 +707,26 @@ public final class PetTracker {
 			remember(profile, active);
 			changes++;
 		}
+	}
+
+	/**
+	 * Reads the player list's "Pet:" widget now, whatever the pet panel's needs: for the Pets menu's highlight, once when the menu opens and when
+	 * it changes, so the list is not read every second for it.
+	 */
+	public static void readTabPetNow(Minecraft client) {
+		if (client.level != null) {
+			lastTab = 0;
+			scanTabList(client);
+		}
+	}
+
+	/** @return the pet the player list's "Pet:" widget shows, or null where it was not seen in the last seconds */
+	public static String tabPetName() {
+		return System.currentTimeMillis() - tabPetSeen < TAB_PET_FRESH_MILLIS ? tabPetName : null;
+	}
+
+	public static int tabPetLevel() {
+		return tabPetLevel;
 	}
 
 	/** @return whether a pet item of the Pets menu is the equipped one: its data says so, or its lore offers to despawn it */
@@ -736,7 +834,9 @@ public final class PetTracker {
 			RegistryOps<Tag> ops = RegistryOps.create(NbtOps.INSTANCE, client.level.registryAccess());
 			return ItemStack.CODEC.encodeStart(ops, stack).result().map(Tag::toString).orElse("");
 		} catch (RuntimeException e) {
-			Debug.log("Could not keep the head of a pet", e);
+			if (DebugHooks.ACTIVE) {
+				DebugHooks.log(SkyBlockDebug.PANELS, "Could not keep the head of a pet", e);
+			}
 			return "";
 		}
 	}

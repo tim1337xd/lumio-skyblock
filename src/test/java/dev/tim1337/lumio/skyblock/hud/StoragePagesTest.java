@@ -3,7 +3,6 @@ package dev.tim1337.lumio.skyblock.hud;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 /** The pages of the storage, and what each looks like on the panel. */
 class StoragePagesTest {
@@ -50,12 +49,4 @@ class StoragePagesTest {
 		assertEquals(StoragePages.State.UNSEEN, StoragePages.state(false, false, null));
 	}
 
-	@Test
-	void aBackpackHasTheColorOfItsSize() {
-		assertNotEquals(StoragePages.backpackRgb("Jumbo Backpack (Slot #1)"), StoragePages.backpackRgb("Small Backpack (Slot #2)"));
-		assertNotEquals(StoragePages.backpackRgb("Greater Backpack"), StoragePages.backpackRgb("Large Backpack"));
-		assertNotEquals(StoragePages.backpackRgb("Medium Backpack"), StoragePages.UNKNOWN_RGB);
-		assertEquals(StoragePages.UNKNOWN_RGB, StoragePages.backpackRgb(null));
-		assertEquals(StoragePages.UNKNOWN_RGB, StoragePages.backpackRgb("Backpack"));
-	}
 }

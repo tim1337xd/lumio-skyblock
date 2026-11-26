@@ -1,8 +1,9 @@
 package dev.tim1337.lumio.skyblock.data;
 
 import dev.tim1337.lumio.api.ActionBarParts;
-import dev.tim1337.lumio.api.experimental.util.Debug;
+import dev.tim1337.lumio.api.experimental.debug.DebugHooks;
 import dev.tim1337.lumio.api.experimental.util.TextColors;
+import dev.tim1337.lumio.skyblock.SkyBlockDebug;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -371,8 +372,8 @@ public final class SkyBlockStats {
 		String escapedNow = escaped(all.toString());
 		if (!escapedNow.equals(lastRaw)) {
 			// log the raw action bar when it changes, so unrecognized parts can be found in the log
-			if (Debug.on() && ++loggedRaw <= 400) {
-				Debug.log("Text above the hotbar: {}", escapedNow);
+			if (DebugHooks.ACTIVE && ++loggedRaw <= 400) {
+				DebugHooks.log(SkyBlockDebug.SKYBLOCK, "Text above the hotbar: {}", escapedNow);
 			}
 		}
 		lastRaw = escapedNow;

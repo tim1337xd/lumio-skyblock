@@ -100,6 +100,9 @@ public final class StorageOverlay {
 	/** The slot or page number at the end of a backpack title, which the card name has already: "(Slot #3)". */
 	private static final Pattern TITLE_NUMBER = Pattern.compile("\\s*\\([^)]*\\)\\s*$");
 
+	/** The card that asks to open the storage menu once, before the pages that exist are known. */
+	private static final String HINT_KEY = "hint";
+
 	private record Card(String key, int x, int y, int w, int h, int rows, boolean live, boolean unseen) {
 		boolean contains(double mx, double my) {
 			return mx >= x && mx < x + w && my >= y && my < y + h;
@@ -374,6 +377,12 @@ public final class StorageOverlay {
 				y = placeRow(y);
 			}
 		}
+		if (kind == 0 && !StorageTracker.menuKnown() && search.isEmpty()) {
+			// before the storage menu was open on this profile the pages that exist are not known: one card says how to load them
+			cardRow.add(new Card(HINT_KEY, cardRow.size() * (StorageLayout.CARD_WIDTH + StorageLayout.GAP), y, StorageLayout.CARD_WIDTH, CARD_HEAD + UNSEEN_ROWS * SLOT + CARD_PAD,
+				UNSEEN_ROWS, false, true));
+			count++;
+		}
 		y = placeRow(y);
 		if (count == 0) {
 			return top;
@@ -421,8 +430,14 @@ public final class StorageOverlay {
 		float dt = lastFrame == 0 ? 0f : Math.min(0.1f, (float) (now - lastFrame) / NANOS_PER_SECOND);
 		lastFrame = now;
 		scroll += (scrollTarget - scroll) * (1f - Math.exp(-dt * 14f));
-		searchShown += ((search.isEmpty() ? 0f : 1f) - searchShown) * (1f - (float) Math.exp(-dt * 12f));
+		boolean searched = !search.isEmpty() || !SkyBlockFeatures.ITEM_LIST.lightText().isBlank();
+		searchShown += ((searched ? 1f : 0f) - searchShown) * (1f - (float) Math.exp(-dt * 12f));
 		layout(screen);
+		// the item search's panels keep around the storage window and its parts, where there is room left
+		ScreenRoom.window(panel[0], panel[1], panel[2], panel[3]);
+		ScreenRoom.take(inventoryCard);
+		ScreenRoom.take(storages.box());
+		ScreenRoom.take(settingsBox);
 		Minecraft client = Minecraft.getInstance();
 		Draw.setZoom(1f);
 		Canvas ui = Draw.hudCanvas(graphics, 0xFF000000 | MainSettings.accentRgb(), dt, true);
@@ -614,6 +629,14 @@ public final class StorageOverlay {
 		}
 		int headY = card.y() + 6;
 		int textColor = card.unseen() ? HudTheme.secondary() : HudTheme.text();
+		if (card.key().equals(HINT_KEY)) {
+			ui.icon("info", card.x() + CARD_PAD, headY, 9, textColor);
+			ui.textAtScaledBold("Your pages", card.x() + CARD_PAD + 13, headY + 1f, TextScale.SMALL, textColor);
+			String hint = "Open /storage once to load your pages";
+			ui.textAtScaled(ui.fitScaled(hint, card.w() - 2 * CARD_PAD, TextScale.SMALL), card.x() + CARD_PAD, card.y() + CARD_HEAD + UNSEEN_ROWS * SLOT / 2f - 3.5f,
+				TextScale.SMALL, HudTheme.secondary());
+			return ItemStack.EMPTY;
+		}
 		ui.icon(card.unseen() ? "lock" : card.key().startsWith("e") ? "chest" : "backpack", card.x() + CARD_PAD, headY, 9, textColor);
 		float right = card.x() + card.w() - CARD_PAD;
 		if (matches > 0) {
@@ -685,10 +708,12 @@ public final class StorageOverlay {
 
 	/** Marks an item for the search: a ring and soft glow in the accent on a match, the rest dimmed, fading with the search. */
 	private static void searchMark(Canvas ui, ItemStack stack, int x, int y) {
-		if (search.isEmpty() || searchShown <= 0.01f) {
+		// its own search, or else the item search's, whose matches light up here too
+		String query = search.isEmpty() ? SkyBlockFeatures.ITEM_LIST.lightText() : search;
+		if (query.isBlank() || searchShown <= 0.01f) {
 			return;
 		}
-		if (stats.matches(stack, search)) {
+		if (stats.matches(stack, query)) {
 			ui.softLight(x + SLOT / 2f, y + SLOT / 2f, SLOT * 0.75f, Draw.withOpacity(ui.accent(), 0.35f * searchShown));
 			ui.ring(x, y, SLOT, SLOT, Radius.XS, 1, Draw.withOpacity(ui.accent(), searchShown));
 		} else {
@@ -828,7 +853,7 @@ public final class StorageOverlay {
 		}
 		String open = openKey(screen);
 		for (Card card : cards) {
-			if (card.contains(mouseX, mouseY) && !card.key().equals(open)) {
+			if (card.contains(mouseX, mouseY) && !card.key().equals(open) && !card.key().equals(HINT_KEY)) {
 				openPage(screen, card.key());
 				return true;
 			}
@@ -926,6 +951,11 @@ public final class StorageOverlay {
 
 	/** Select-all state of the search field. */
 	private static final TextSelection SEARCH_SELECTION = new TextSelection();
+
+	/** Lets go of the search, when the item search takes the keyboard. */
+	public static void unfocusSearch() {
+		searchFocused = false;
+	}
 
 	/** @return whether the search has focus */
 	public static boolean searching() {

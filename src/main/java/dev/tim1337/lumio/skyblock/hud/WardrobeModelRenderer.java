@@ -1,5 +1,6 @@
 package dev.tim1337.lumio.skyblock.hud;
 
+import dev.tim1337.lumio.skyblock.SkyBlockAddon;
 import dev.tim1337.lumio.skyblock.mixin.accessor.PictureImageAccess;
 import dev.tim1337.lumio.skyblock.mixin.accessor.RenderPipelinesAccess;
 
@@ -59,7 +60,7 @@ public final class WardrobeModelRenderer extends PictureInPictureRenderer<Wardro
 	private int drawnVersion = -1;
 
 	private static Identifier id(String path) {
-		return Identifier.fromNamespaceAndPath("lumio-skyblock", path);
+		return Identifier.fromNamespaceAndPath(SkyBlockAddon.ID, path);
 	}
 
 	/** @return how many times an image was drawn so far */

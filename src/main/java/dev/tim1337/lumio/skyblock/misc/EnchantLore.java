@@ -1,6 +1,7 @@
 package dev.tim1337.lumio.skyblock.misc;
 
-import dev.tim1337.lumio.api.experimental.util.Debug;
+import dev.tim1337.lumio.api.experimental.debug.DebugHooks;
+import dev.tim1337.lumio.skyblock.SkyBlockDebug;
 import dev.tim1337.lumio.skyblock.data.EnchantTiers;
 
 import java.util.ArrayList;
@@ -13,7 +14,12 @@ import java.util.regex.Pattern;
  * Plain text, so it is unit tested.
  */
 final class EnchantLore {
-	private static final Pattern ENTRY = Pattern.compile("([A-Z][A-Za-z'\\-]*(?: [A-Za-z'\\-]+)*?) ([IVXLC]{1,7}|\\d{1,3})(?: \\([^)]*\\)| [\\d.,]+[kKmM]?)?");
+	/**
+	 * One enchant: its name (one word or several), its level in Roman numerals or digits, and what may follow the level. The level is a word of
+	 * its own: a name's next word that only starts with such a letter ("Mana Vampire", "Ice Cold", "Strong Vitality") is not one. Read as a
+	 * level it ended the entry in the middle of the name, and the whole line, with every other enchant on it, stayed uncolored.
+	 */
+	private static final Pattern ENTRY = Pattern.compile("([A-Z][A-Za-z'\\-]*(?: [A-Za-z'\\-]+)*?) ([IVXLC]{1,7}|\\d{1,3})(?![A-Za-z'\\-])(?: \\([^)]*\\)| [\\d.,]+[kKmM]?)?");
 
 	/** An enchant's place in the line, from its name's start to its level's end: what follows it stays as it is. */
 	record Span(int start, int end, EnchantTiers.Tier tier) {
@@ -36,7 +42,9 @@ final class EnchantLore {
 			if (tier != null) {
 				spans.add(new Span(matcher.start(), matcher.end(2), tier));
 			} else if (tiers.firstUnknown(matcher.group(1))) {
-				Debug.log("An enchant the item repository does not know: {}", matcher.group(1));
+				if (DebugHooks.ACTIVE) {
+					DebugHooks.log(SkyBlockDebug.PANELS, "An enchant the item repository does not know: {}", matcher.group(1));
+				}
 			}
 			at = matcher.end();
 			if (at < line.length() && line.charAt(at) == ',') {

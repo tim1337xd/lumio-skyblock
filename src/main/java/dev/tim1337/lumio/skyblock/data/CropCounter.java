@@ -20,7 +20,7 @@ import java.util.Map;
  * same crops only every 30 seconds, so what was counted here is subtracted from their later reports (and from what lands in the inventory, also as
  * enchanted crops), and nothing is counted twice. Only the held item is read; nothing is sent.
  */
-final class CropCounter {
+public final class CropCounter {
 	enum Crop {
 		WHEAT("WHEAT", "Wheat", null, "WHEAT"),
 		CARROT("CARROT_ITEM", "Carrot", "carrot", "CARROT_ITEM", "CARROT"),

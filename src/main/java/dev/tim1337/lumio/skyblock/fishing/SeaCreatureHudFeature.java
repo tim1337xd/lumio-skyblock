@@ -6,7 +6,6 @@ import dev.tim1337.lumio.api.experimental.draw.Draw;
 import dev.tim1337.lumio.api.experimental.draw.HudTheme;
 import dev.tim1337.lumio.api.experimental.hud.HudEditor;
 import dev.tim1337.lumio.api.feature.AddonPanel;
-import dev.tim1337.lumio.api.feature.SettingGroup;
 import dev.tim1337.lumio.api.setting.Action;
 import dev.tim1337.lumio.api.setting.Choice;
 import dev.tim1337.lumio.api.setting.Slider;
@@ -20,6 +19,9 @@ import dev.tim1337.lumio.api.experimental.motion.Spring;
 import dev.tim1337.lumio.api.experimental.ui.UiSounds;
 import dev.tim1337.lumio.api.experimental.util.TextColors;
 import dev.tim1337.lumio.skyblock.SkyBlockSimulation;
+import dev.tim1337.lumio.api.experimental.debug.DebugHooks;
+import dev.tim1337.lumio.skyblock.SkyBlockDebug;
+import dev.tim1337.lumio.skyblock.fishing.SeaCreatures.Creature;
 import dev.tim1337.lumio.skyblock.data.Activity;
 import dev.tim1337.lumio.skyblock.data.FishingRods;
 import dev.tim1337.lumio.skyblock.data.ProfitActivity;
@@ -33,8 +35,12 @@ import com.google.gson.JsonObject;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
 import net.minecraft.util.Mth;
+import net.minecraft.util.StringDecomposer;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -64,78 +70,8 @@ public class SeaCreatureHudFeature extends AddonPanel {
 		}
 	}
 
-	/** A sea creature: name, rarity (0 common to 5 mythic), and a fragment of its catch message. */
-	private record Creature(String name, int rarity, String message) {
-	}
-
-	private static final Creature[] CREATURES = {
-		// water
-		new Creature("Squid", 0, "A Squid appeared."),
-		new Creature("Sea Walker", 0, "You caught a Sea Walker."),
-		new Creature("Night Squid", 0, "Pitch darkness reveals a Night Squid."),
-		new Creature("Sea Guardian", 1, "You stumbled upon a Sea Guardian."),
-		new Creature("Sea Witch", 1, "It looks like you've disrupted the Sea Witch's brewing session."),
-		new Creature("Sea Archer", 1, "You reeled in a Sea Archer."),
-		new Creature("Rider of the Deep", 1, "The Rider of the Deep has emerged."),
-		new Creature("Catfish", 2, "Huh? A Catfish!"),
-		new Creature("Carrot King", 2, "Is this even a fish? It's the Carrot King!"),
-		new Creature("Agarimoo", 2, "Agarimoo"),
-		new Creature("Sea Leech", 2, "Gross! A Sea Leech!"),
-		new Creature("Guardian Defender", 3, "You've discovered a Guardian Defender of the sea."),
-		new Creature("Deep Sea Protector", 3, "You have awoken the Deep Sea Protector"),
-		new Creature("Water Hydra", 4, "The Water Hydra has come to test your strength."),
-		new Creature("Sea Emperor", 4, "The Sea Emperor arises from the depths."),
-		new Creature("Oasis Rabbit", 1, "An Oasis Rabbit appears from the water."),
-		new Creature("Oasis Sheep", 1, "An Oasis Sheep appears from the water."),
-		// mines
-		new Creature("Water Worm", 2, "A Water Worm surfaces!"),
-		new Creature("Poisoned Water Worm", 2, "A Poisoned Water Worm surfaces!"),
-		new Creature("Abyssal Miner", 3, "An Abyssal Miner breaks out of the water!"),
-		new Creature("Flaming Worm", 2, "A Flaming Worm surfaces from the depths!"),
-		new Creature("Lava Blaze", 3, "A Lava Blaze has surfaced from the depths!"),
-		new Creature("Lava Pigman", 3, "A Lava Pigman arose from the depths!"),
-		// Crimson Isle lava
-		new Creature("Magma Slug", 0, "From beneath the lava appears a Magma Slug."),
-		new Creature("Moogma", 0, "You hear a faint Moo from the lava... A Moogma appears."),
-		new Creature("Lava Leech", 1, "A small but fearsome Lava Leech emerges."),
-		new Creature("Pyroclastic Worm", 1, "You feel the heat radiating as a Pyroclastic Worm surfaces."),
-		new Creature("Lava Flame", 2, "A Lava Flame flies out from beneath the lava."),
-		new Creature("Fire Eel", 2, "A Fire Eel slithers out from the depths."),
-		new Creature("Taurus", 3, "Taurus and his steed emerge."),
-		new Creature("Plhlegblast", 4, "WOAH! A Plhlegblast appeared."),
-		new Creature("Thunder", 4, "You hear a massive rumble as Thunder emerges."),
-		new Creature("Lord Jawbus", 5, "You have angered a legendary creature... Lord Jawbus has arrived."),
-		new Creature("Fiery Scuttler", 4, "A Fiery Scuttler inconspicuously waddles up to you"),
-		new Creature("Ragnarok", 5, "The end times are upon us: Ragnarok is here."),
-		// Spooky Festival
-		new Creature("Scarecrow", 0, "Phew! It's only a Scarecrow."),
-		new Creature("Nightmare", 2, "you caught a Nightmare."),
-		new Creature("Werewolf", 3, "It must be a full moon, a Werewolf appears."),
-		new Creature("Phantom Fisher", 4, "The spirit of a long lost Phantom Fisher has come to haunt you."),
-		new Creature("Grim Reaper", 4, "This can't be! The manifestation of death himself!"),
-		// Jerry's Workshop
-		new Creature("Frozen Steve", 0, "Frozen Steve fell into the pond long ago"),
-		new Creature("Frosty", 0, "It's a snowman! He looks harmless."),
-		new Creature("Grinch", 1, "The Grinch stole Jerry's Gifts"),
-		new Creature("Nutcracker", 3, "You found a forgotten Nutcracker laying beneath the ice."),
-		new Creature("Yeti", 4, "What is this creature!?"),
-		new Creature("Reindrake", 5, "A Reindrake forms from the depths."),
-		// the Fishing Festival
-		new Creature("Nurse Shark", 0, "you've caught a Nurse Shark."),
-		new Creature("Blue Shark", 1, "it's a Blue Shark."),
-		new Creature("Tiger Shark", 2, "the wild Tiger Shark!"),
-		new Creature("Great White Shark", 4, "a Great White Shark has tracked your scent"),
-		// Backwater Bayou
-		new Creature("Frog Man", 0, "it's a Frog Man!"),
-		new Creature("Trash Gobbler", 0, "The Trash Gobbler is hungry for you!"),
-		new Creature("Dumpster Diver", 1, "A Dumpster Diver has emerged from the swamp!"),
-		new Creature("Banshee", 2, "The desolate wail of a Banshee breaks the silence."),
-		new Creature("Bayou Sludge", 2, "the Bayou Sludge!"),
-		new Creature("Alligator", 3, "It's an Alligator!"),
-		new Creature("Blue Ringed Octopus", 3, "It's a Blue Ringed Octopus!"),
-		new Creature("Titanoboa", 5, "A massive Titanoboa surfaces."),
-		new Creature("Wiki Tiki", 5, "you have disturbed the Wiki Tiki!"),
-	};
+	/** Every sea creature, from the list shared with the fishing alerts. */
+	private static final Creature[] CREATURES = SeaCreatures.all().toArray(new Creature[0]);
 
 	/** SkyBlock rarity colors, from common to mythic. */
 	private static final int[] RARITY_COLORS = {0xFFFFFFFF, 0xFF55FF55, 0xFF5555FF, 0xFFAA00AA, 0xFFFFAA00, 0xFFFF55FF};
@@ -152,6 +88,8 @@ public class SeaCreatureHudFeature extends AddonPanel {
 		final Map<String, Long> counts = new LinkedHashMap<>();
 		/** Per rare creature caught: the catches since it was last caught. */
 		final Map<String, Long> since = new HashMap<>();
+		/** Per creature caught: when it was last caught (epoch milliseconds). */
+		final Map<String, Long> lastAt = new HashMap<>();
 		long catches;
 		long doubleHooks;
 		long activeMillis;
@@ -160,6 +98,7 @@ public class SeaCreatureHudFeature extends AddonPanel {
 		void clear() {
 			counts.clear();
 			since.clear();
+			lastAt.clear();
 			catches = 0;
 			doubleHooks = 0;
 			activeMillis = 0;
@@ -177,6 +116,9 @@ public class SeaCreatureHudFeature extends AddonPanel {
 			JsonObject sinceList = new JsonObject();
 			since.forEach(sinceList::addProperty);
 			json.add("since", sinceList);
+			JsonObject lastList = new JsonObject();
+			lastAt.forEach(lastList::addProperty);
+			json.add("last_at", lastList);
 			return json;
 		}
 
@@ -189,13 +131,21 @@ public class SeaCreatureHudFeature extends AddonPanel {
 				day = json.has("day") ? json.get("day").getAsString() : "";
 				if (json.has("creatures") && json.get("creatures").isJsonObject()) {
 					for (Map.Entry<String, JsonElement> entry : json.getAsJsonObject("creatures").entrySet()) {
-						counts.put(entry.getKey(), entry.getValue().getAsLong());
+						// a creature that was renamed is counted on under its name of today, with what was counted under the old one
+						counts.merge(SeaCreatures.nameNow(entry.getKey()), entry.getValue().getAsLong(), Long::sum);
 					}
 				}
 				if (json.has("since") && json.get("since").isJsonObject()) {
 					for (Map.Entry<String, JsonElement> entry : json.getAsJsonObject("since").entrySet()) {
 						if (BY_NAME.containsKey(entry.getKey())) {
-							since.put(entry.getKey(), Math.max(0L, entry.getValue().getAsLong()));
+							since.merge(SeaCreatures.nameNow(entry.getKey()), Math.max(0L, entry.getValue().getAsLong()), Math::min);
+						}
+					}
+				}
+				if (json.has("last_at") && json.get("last_at").isJsonObject()) {
+					for (Map.Entry<String, JsonElement> entry : json.getAsJsonObject("last_at").entrySet()) {
+						if (BY_NAME.containsKey(SeaCreatures.nameNow(entry.getKey()))) {
+							lastAt.merge(SeaCreatures.nameNow(entry.getKey()), Math.max(0L, entry.getValue().getAsLong()), Math::max);
 						}
 					}
 				}
@@ -215,7 +165,7 @@ public class SeaCreatureHudFeature extends AddonPanel {
 	private final Toggle showDoubleHooks = add(make().toggle("show_double_hooks", Component.literal("Double hook rate"), true), "General");
 	private final Toggle showPerHour = add(make().toggle("show_per_hour", Component.literal("Per hour"), true), "General");
 	private final Toggle rarityColors = add(make().toggle("rarity_colors", Component.literal("Rarity colors"), true), "General");
-	private final Toggle showRare = add(make().toggle("show_rare", Component.literal("Rare creature"), true), "General");
+	private final Toggle showRare = add(make().toggle("show_rare", Component.literal("Rare creatures on hover"), true), "General");
 	private final Toggle showList = add(make().toggle("show_list", Component.literal("Creature list"), true), "General");
 	private final Choice<Sort> sort = add(make().choice("sort", Component.literal("Sort by"), Sort.COUNT, Sort::displayName, Choice.Style.SEGMENTED), "General");
 	private final Slider rowsShown = add(make().slider("rows", Component.literal("Rows"), 8f, 1f, 20f, 0), "General");
@@ -234,13 +184,19 @@ public class SeaCreatureHudFeature extends AddonPanel {
 	private List<Map.Entry<String, Long>> listed = List.of();
 
 	public SeaCreatureHudFeature() {
-		super("sea_creatures", "Sea creatures", "The sea creatures you fish up, with double hooks, their share of all, and how many in an hour: for the session, today and all time.",
+		super("sea_creatures", "Sea creatures", "Sea creatures you fish up, with rates.",
 			true, Anchor.LEFT, false, 12f, 220f);
 		offerCardSize();
 		offerNoBackground();
 		iconRgb(SystemColors.BLUE_RGB);
 		iconName("fish");
-		summary("The sea creatures you catch, and how many per hour");
+		summary("Sea creatures you catch, per hour");
+		sort.visibleWhen(showList::get);
+		rowsShown.visibleWhen(showList::get);
+		percentages.visibleWhen(showList::get);
+		// the tooltip comes with "Rare creatures on hover", or over a line of the list
+		rarityColors.visibleWhen(() -> showList.get() || showRare.get());
+		showDoubleHooks.visibleWhen(() -> showList.get() || showRare.get());
 		offerHeader();
 	}
 
@@ -276,6 +232,12 @@ public class SeaCreatureHudFeature extends AddonPanel {
 			}
 			sample.doubleHooks = 9;
 			sample.since.put(names[5], 41L);
+			sample.since.put(names[4], 7L);
+			// when each was last caught, so the tooltip shows its "ago" too
+			long now = System.currentTimeMillis();
+			for (int i = 0; i < names.length; i++) {
+				sample.lastAt.put(names[i], now - (i + 1) * 95_000L);
+			}
 			sample.activeMillis = 48 * 60_000L;
 		}
 		return sample;
@@ -305,7 +267,7 @@ public class SeaCreatureHudFeature extends AddonPanel {
 		}
 		// strip color codes, which Hypixel may put in the middle of a message
 		String text = TextColors.noColors(message.getString()).strip();
-		if (text.contains("Double Hook!")) {
+		if (text.contains(SeaCreatures.DOUBLE_HOOK)) {
 			doubleHookAt = System.currentTimeMillis();
 			return;
 		}
@@ -315,7 +277,34 @@ public class SeaCreatureHudFeature extends AddonPanel {
 				return;
 			}
 		}
+		// a creature the list does not know yet (a new island's): counted by the name its line gives, not dropped
+		String unknown = UnknownCatch.of(text, catchGreen(message), hookOutAt == 0 ? -1 : System.currentTimeMillis() - hookOutAt);
+		if (unknown != null) {
+			if (DebugHooks.ACTIVE) {
+				DebugHooks.log(SkyBlockDebug.FISHING, "A sea creature the list does not know, counted as \"{}\": {}", unknown, text);
+			}
+			caught(new Creature(unknown, 0, text, SeaCreatures.Place.WATER, false));
+		}
 	}
+
+	/** When the player's own bobber was last out, for telling a catch line of a creature the list does not know. */
+	private long hookOutAt;
+
+	/** @return whether every letter of a line is in the plain green the server writes its catch lines in */
+	private static boolean catchGreen(Component message) {
+		boolean[] green = {true};
+		boolean[] any = {false};
+		StringDecomposer.iterateFormatted(message, Style.EMPTY, (position, style, codePoint) -> {
+			if (!Character.isWhitespace(codePoint)) {
+				any[0] = true;
+				green[0] &= style.getColor() != null && style.getColor().getValue() == CATCH_GREEN && !style.isBold();
+			}
+			return green[0];
+		});
+		return green[0] && any[0];
+	}
+
+	private static final int CATCH_GREEN = 0x55FF55;
 
 	private void caught(Creature creature) {
 		boolean doubled = System.currentTimeMillis() - doubleHookAt < 3000L;
@@ -329,6 +318,7 @@ public class SeaCreatureHudFeature extends AddonPanel {
 				bucket.since.put(creature.name(), 0L);
 			}
 			bucket.counts.merge(creature.name(), (long) amount, Long::sum);
+			bucket.lastAt.put(creature.name(), System.currentTimeMillis());
 			bucket.catches += amount;
 			if (doubled) {
 				bucket.doubleHooks++;
@@ -344,7 +334,11 @@ public class SeaCreatureHudFeature extends AddonPanel {
 		if (!isEnabled() || client.player == null) {
 			return;
 		}
-		if (ProfitActivity.FISHING.now() && FishingRods.onFishingIsland()) {
+		if (client.player.fishing != null && FishingRods.holding(client.player.getMainHandItem())) {
+			hookOutAt = now;
+		}
+		// fishing is told from the cast itself, on whatever island: a list of islands left every new one out
+		if (ProfitActivity.FISHING.now()) {
 			rollDay();
 			session.activeMillis += dt;
 			today.activeMillis += dt;
@@ -373,8 +367,8 @@ public class SeaCreatureHudFeature extends AddonPanel {
 		if (!SkyBlock.allowed()) {
 			return false;
 		}
-		// auto-detected, as the fishing tracker: on the fishing islands, while fishing, and afterwards as long as the player stays where they fished
-		return FishingRods.onFishingIsland() && ProfitActivity.FISHING.engaged();
+		// auto-detected, as the fishing tracker: while fishing, on whatever island, and afterwards as long as the player stays where they fished
+		return ProfitActivity.FISHING.engaged();
 	}
 
 	@Override
@@ -450,6 +444,12 @@ public class SeaCreatureHudFeature extends AddonPanel {
 		return true;
 	}
 
+	/** Used with the mouse while an inventory is open: it stays as it is behind menus. */
+	@Override
+	public boolean usedInMenus() {
+		return true;
+	}
+
 	private static int rarityOf(String name) {
 		Creature creature = BY_NAME.get(name);
 		return creature == null ? 0 : creature.rarity();
@@ -475,8 +475,8 @@ public class SeaCreatureHudFeature extends AddonPanel {
 		return Math.round(shownHeight.value() > 0f ? shownHeight.value() : targetHeight());
 	}
 
-	/** The hero block (the count with its rate, and the rare creature beside it), a creature's row, and the list's label row. */
-	private static final int HERO_BLOCK = 30;
+	/** The hero block (the count with its rate), a creature's row, and the list's label row. */
+	private static final int HERO_BLOCK = 24;
 	private static final int ROW_BASE = 13;
 	private static final int LIST_TOP = 6;
 	/** The least rarity a creature needs to be the rare one the panel follows (rare and up). */
@@ -507,12 +507,17 @@ public class SeaCreatureHudFeature extends AddonPanel {
 		pose.translate(-cardWidth() / 2f, 0f);
 		try {
 			int height = panelHeight();
+			mouseFree = mouseOver(client);
 			drawGlass(ui, cardWidth(), height, PanelKit.RADIUS);
 			graphics.enableScissor(0, 0, cardWidth(), height - 2);
 			try {
 				drawContent(ui);
 			} finally {
 				graphics.disableScissor();
+			}
+			// outside the panel's clip, over it and beside it
+			if (mouseFree && (showRare.get() || hoveredCreature != null)) {
+				drawTooltip(ui, shownBucket(), client);
 			}
 		} finally {
 			pose.popMatrix();
@@ -550,15 +555,7 @@ public class SeaCreatureHudFeature extends AddonPanel {
 		ui.textAtScaled(showPerHour.get() || HudEditor.isOpen() ? rateText : "caught", PanelKit.PAD, top + 15f, PanelKit.SMALL, HudTheme.secondary());
 		Draw.setAlpha(before);
 		part("Per hour", showPerHour, PanelKit.PAD, top + 14f, ui.widthScaled(rateText, PanelKit.SMALL), 8f);
-		float leftWidth = Math.max(ui.boldWidthScaled(heroText, PanelKit.HERO_MEDIUM), ui.widthScaled(rateText, PanelKit.SMALL));
-		float x = PanelKit.PAD + leftWidth + 12f;
-		float room = width - PanelKit.PAD - x;
-		if (showRare.get() || HudEditor.isOpen()) {
-			Draw.setAlpha(before * HudEditor.partAlpha(showRare.get()));
-			drawRare(ui, bucket, x, top, room);
-			Draw.setAlpha(before);
-			part("Rare creature", showRare, x, top, room, HERO_BLOCK);
-		}
+		hoveredCreature = null;
 		if (!listShown()) {
 			return;
 		}
@@ -571,6 +568,10 @@ public class SeaCreatureHudFeature extends AddonPanel {
 		}
 		for (Map.Entry<String, Long> entry : listed) {
 			drawCreature(ui, bucket, entry, y);
+			// the creature line under the mouse: the tooltip then shows that creature alone
+			if (mouseFree && mouseY >= y && mouseY < y + line(ROW_BASE)) {
+				hoveredCreature = entry.getKey();
+			}
 			y += line(ROW_BASE);
 		}
 		Draw.setAlpha(before);
@@ -578,63 +579,87 @@ public class SeaCreatureHudFeature extends AddonPanel {
 			LIST_TOP + Math.max(1, listed.size()) * line(ROW_BASE));
 	}
 
-	/** The rare creature: the rarest caught (rare and up), its catches since the last one with a bar toward its average, and that average. */
-	private void drawRare(Canvas ui, Bucket bucket, float x, float top, float room) {
-		String rare = rareCreature(bucket);
-		if (rare == null) {
-			if (showDoubleHooks.get()) {
-				long hooks = Math.max(1, bucket.catches - (doubleAsTwo.get() ? bucket.doubleHooks : 0));
-				ui.textAtScaled("Double hooks", x, top + 2f, PanelKit.SMALL, HudTheme.secondary());
-				String value = bucket.doubleHooks + (bucket.doubleHooks > 0 ? " · " + percent(bucket.doubleHooks / (double) hooks) : "");
-				ui.textAtScaledBold(value, x, top + 11f, TextScale.BODY, HudTheme.text());
-			} else {
-				ui.textAtScaled("No rare creature yet", x, top + 6f, PanelKit.SMALL, HudTheme.secondary());
-			}
-			return;
+	/** Whether the mouse is free and over the panel this frame, where it is in the panel's units, and the creature line it is over. */
+	private boolean mouseFree;
+	private float mouseX;
+	private float mouseY;
+	private String hoveredCreature;
+
+	/**
+	 * @return whether the mouse is free and over the panel as the HUD shows it: with the chat open, in a menu with slots (where the panel is drawn
+	 *         over it) or in the HUD editor; never in the settings, where the panel is a preview elsewhere
+	 */
+	private boolean mouseOver(Minecraft client) {
+		var screen = client.gui.screen();
+		if (!(screen instanceof ChatScreen) && !(screen instanceof AbstractContainerScreen<?>) && !HudEditor.isOpen()) {
+			return false;
 		}
-		int color = colorOf(rare);
-		long caught = bucket.counts.getOrDefault(rare, 0L);
-		// unknown until it is caught once more: the count started with this version
-		Long counted = bucket.since.get(rare);
-		long since = counted == null ? -1 : counted;
-		long average = caught <= 0 ? 0 : Math.max(1, bucket.catches / caught);
-		if (since != rareSince || average != rareAverage || !rare.equals(rareName)) {
-			rareSince = since;
-			rareAverage = average;
-			rareName = rare;
-			sinceText = since < 0 ? "" : PanelKit.grouped(since) + " since last";
-			averageText = "Average 1 in " + PanelKit.grouped(average);
+		int[] box = hudBounds();
+		if (box == null || box[2] <= 0 || box[3] <= 0) {
+			return false;
 		}
-		float sinceWidth = ui.widthScaled(sinceText, PanelKit.SMALL);
-		ui.textAtScaled(sinceText, x + room - sinceWidth, top + 1.5f, PanelKit.SMALL, HudTheme.secondary());
-		ui.textAtScaledBold(ui.fit(rare, Math.round((room - sinceWidth - 6f) / PanelKit.META)), x, top + 1f, PanelKit.META, PanelKit.readable(color));
-		if (since >= 0) {
-			PanelKit.bar(ui, x, top + 12f, room, PanelKit.BAR, average <= 0 ? 0f : Math.min(1f, since / (float) average), color);
+		double x = client.mouseHandler.getScaledXPos(client.getWindow());
+		double y = client.mouseHandler.getScaledYPos(client.getWindow());
+		if (x < box[0] || y < box[1] || x >= box[0] + box[2] || y >= box[1] + box[3]) {
+			return false;
 		}
-		ui.textAtScaled(averageText, x, top + 18f, PanelKit.SMALL, Draw.withOpacity(HudTheme.secondary(), 0.8f));
+		mouseX = (float) ((x - box[0]) * cardWidth() / box[2]);
+		mouseY = (float) ((y - box[1]) * panelHeight() / box[3]);
+		return true;
 	}
 
-	/** The rare creature's texts, made again only when they change. */
-	private long rareSince = -2;
-	private long rareAverage = -1;
-	private String rareName = "";
-	private String sinceText = "";
-	private String averageText = "";
-
-	/** @return the rarest creature caught in a time range (rare and up, the least caught of those), or null if none */
-	private static String rareCreature(Bucket bucket) {
-		String found = null;
-		int foundRarity = RARE_FROM - 1;
-		long foundCount = Long.MAX_VALUE;
-		for (Map.Entry<String, Long> entry : bucket.counts.entrySet()) {
-			int rarity = rarityOf(entry.getKey());
-			if (rarity > foundRarity || rarity == foundRarity && found != null && entry.getValue() < foundCount) {
-				found = entry.getKey();
-				foundRarity = rarity;
-				foundCount = entry.getValue();
+	/**
+	 * The tooltip: the rare creatures followed (rare and up, caught in the time range), one line each with the catches since the last one, the
+	 * average and how long ago; over a creature's line, that creature alone. The double hook rate stands under the title.
+	 */
+	private void drawTooltip(Canvas ui, Bucket bucket, Minecraft client) {
+		long now = System.currentTimeMillis();
+		List<SeaCreatureTooltip.Line> lines = new ArrayList<>();
+		String title;
+		if (hoveredCreature != null) {
+			title = range.get().title();
+			lines.add(lineOf(bucket, hoveredCreature, now));
+		} else {
+			title = "Rare sea creatures";
+			List<String> rare = new ArrayList<>();
+			for (String name : bucket.counts.keySet()) {
+				if (rarityOf(name) >= RARE_FROM) {
+					rare.add(name);
+				}
+			}
+			// the rarest first
+			rare.sort((a, b) -> Integer.compare(rarityOf(b), rarityOf(a)));
+			for (String name : rare) {
+				lines.add(lineOf(bucket, name, now));
 			}
 		}
-		return found;
+		String note = null;
+		if (showDoubleHooks.get() && bucket.catches > 0) {
+			long hooks = Math.max(1, bucket.catches - (doubleAsTwo.get() ? bucket.doubleHooks : 0));
+			note = "Double hooks " + bucket.doubleHooks + (bucket.doubleHooks > 0 ? " · " + percent(bucket.doubleHooks / (double) hooks) : "");
+		}
+		if (HudEditor.isOpen()) {
+			// the editor draws its selection outline over the panels: the tooltip goes over it, at the mouse in GUI pixels
+			double screenX = client.mouseHandler.getScaledXPos(client.getWindow());
+			double screenY = client.mouseHandler.getScaledYPos(client.getWindow());
+			boolean left = screenX > client.getWindow().getGuiScaledWidth() / 2.0;
+			String shownNote = note;
+			HudEditor.drawOnTop(canvas -> SeaCreatureTooltip.draw(canvas, title, shownNote, lines, "No rare creature yet", (float) screenX, (float) screenY, left));
+			return;
+		}
+		SeaCreatureTooltip.draw(ui, title, note, lines, "No rare creature yet", mouseX, mouseY, mouseX > cardWidth() / 2f);
+	}
+
+	/** @return a creature's tooltip line: catches since the last one (rare ones only), the average, and how long ago */
+	private SeaCreatureTooltip.Line lineOf(Bucket bucket, String name, long now) {
+		long caught = bucket.counts.getOrDefault(name, 0L);
+		Long since = bucket.since.get(name);
+		Long last = bucket.lastAt.get(name);
+		long average = caught <= 0 ? 0 : Math.max(1, bucket.catches / caught);
+		return new SeaCreatureTooltip.Line(name, colorOf(name) & 0xFFFFFF, new String[] {
+			since == null ? "" : PanelKit.grouped(since) + " since last",
+			average <= 0 ? "" : "1 in " + PanelKit.grouped(average),
+			last == null ? "" : SeaCreatureTooltip.ago(now - last)});
 	}
 
 	private int colorOf(String creature) {

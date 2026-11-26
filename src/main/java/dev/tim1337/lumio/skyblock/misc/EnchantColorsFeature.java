@@ -46,6 +46,21 @@ import java.util.Optional;
  * only then. Other mods' enchant coloring is left alone.
  */
 public class EnchantColorsFeature extends AddonFeature {
+	/** How many own colors a tier's flow has. Saved as the number the slider before it saved, so an old config loads as that number's choice. */
+	enum Count {
+		TWO(2), THREE(3);
+
+		final int colors;
+
+		Count(int colors) {
+			this.colors = colors;
+		}
+
+		Component displayName() {
+			return Component.literal(String.valueOf(colors));
+		}
+	}
+
 	/** How a tier's letters are colored. */
 	public enum Look {
 		COLOR("Color"),
@@ -84,13 +99,13 @@ public class EnchantColorsFeature extends AddonFeature {
 	private static final String[] SAMPLE_SWORD = {"Sharpness VII", "Smite VI", "Cubism V", "Ender Slayer III", "Ultimate Wise V"};
 	private static final String SAMPLE_BOOK = "Sharpness VII";
 
-	private final Toggle hideGameLines = add(make().toggle("hide_game_lines", Component.literal("Hide the game's enchant line"), true), "Colors", "The one under the name, when the lore lists that enchant too");
+	private final Toggle hideGameLines = add(make().toggle("hide_game_lines", Component.literal("Hide the game's enchant line"), true), "Colors", "When the lore lists it too");
 	private final AddonSetting<Void> preview = add(HudTheme.preview("preview", Component.literal("Preview"), PREVIEW_HEIGHT, this::drawPreview), "Colors");
-	private final ColorChoice ultimate = add(make().color("ultimate", Component.literal("Ultimate"), EnchantDefaults.ULTIMATE).inRow("Colors"), "Colors");
-	private final ColorChoice perfect = add(make().color("perfect", Component.literal("Perfect"), EnchantDefaults.PERFECT).inRow("Colors"), "Colors");
-	private final ColorChoice great = add(make().color("great", Component.literal("Great"), EnchantDefaults.GREAT).inRow("Colors"), "Colors");
-	private final ColorChoice good = add(make().color("good", Component.literal("Good"), EnchantDefaults.GOOD).inRow("Colors"), "Colors");
-	private final ColorChoice poor = add(make().color("poor", Component.literal("Poor"), EnchantDefaults.POOR).inRow("Colors"), "Colors");
+	private final ColorChoice ultimate = add(make().color("ultimate", Component.literal("Ultimate"), EnchantDefaults.ULTIMATE).ownColorOnly().inRow("Colors"), "Colors");
+	private final ColorChoice perfect = add(make().color("perfect", Component.literal("Perfect"), EnchantDefaults.PERFECT).ownColorOnly().inRow("Colors"), "Colors");
+	private final ColorChoice great = add(make().color("great", Component.literal("Great"), EnchantDefaults.GREAT).ownColorOnly().inRow("Colors"), "Colors");
+	private final ColorChoice good = add(make().color("good", Component.literal("Good"), EnchantDefaults.GOOD).ownColorOnly().inRow("Colors"), "Colors");
+	private final ColorChoice poor = add(make().color("poor", Component.literal("Poor"), EnchantDefaults.POOR).ownColorOnly().inRow("Colors"), "Colors");
 	private final TierLook perfectStyle = new TierLook("perfect", "Perfect style", Look.CHROMA);
 	private final TierLook ultimateStyle = new TierLook("ultimate", "Ultimate style", Look.COLOR);
 	private final Map<String, Line> lines = new LinkedHashMap<>(64, 0.75f, true) {
@@ -106,7 +121,7 @@ public class EnchantColorsFeature extends AddonFeature {
 		final ColorChoice first;
 		final ColorChoice second;
 		final ColorChoice third;
-		final Slider count;
+		final Choice<Count> count;
 		final Slider speed;
 		/** The own colors, each as light as it takes to read on a tooltip. */
 		final int[] colors = new int[3];
@@ -114,7 +129,7 @@ public class EnchantColorsFeature extends AddonFeature {
 
 		TierLook(String key, String group, Look fallback) {
 			look = add(make().choice(key + "_look", Component.literal("Style"), fallback, Look::displayName), group);
-			count = add(make().slider(key + "_count", Component.literal("Colors"), 2f, 2f, 3f, 0), group);
+			count = add(make().choice(key + "_count", Component.literal("Colors"), Count.TWO, Count::displayName, Choice.Style.SEGMENTED), group);
 			first = add(make().color(key + "_first", Component.literal("First"), EnchantDefaults.FLOW_A).inRow("Own colors"), group);
 			second = add(make().color(key + "_second", Component.literal("Second"), EnchantDefaults.FLOW_B).inRow("Own colors"), group);
 			third = add(make().color(key + "_third", Component.literal("Third"), EnchantDefaults.FLOW_C).inRow("Own colors"), group);
@@ -122,7 +137,7 @@ public class EnchantColorsFeature extends AddonFeature {
 			count.under(look, () -> look.get() == Look.CUSTOM);
 			first.under(look, () -> look.get() == Look.CUSTOM);
 			second.under(look, () -> look.get() == Look.CUSTOM);
-			third.under(look, () -> look.get() == Look.CUSTOM && count.get() >= 3f);
+			third.under(look, () -> look.get() == Look.CUSTOM && count.get() == Count.THREE);
 			speed.under(look, () -> look.get() == Look.CUSTOM);
 		}
 
@@ -138,11 +153,11 @@ public class EnchantColorsFeature extends AddonFeature {
 				colors[1] = EnchantPaint.readable(second.get() & 0xFFFFFF);
 				colors[2] = EnchantPaint.readable(third.get() & 0xFFFFFF);
 			}
-			return EnchantPaint.flow(colors, Math.round(count.get()), speed.get(), seconds, index);
+			return EnchantPaint.flow(colors, count.get().colors, speed.get(), seconds, index);
 		}
 
 		int version() {
-			return look.get().ordinal() * 31 + first.get() * 7 + second.get() * 5 + third.get() * 3 + Math.round(count.get());
+			return look.get().ordinal() * 31 + first.get() * 7 + second.get() * 5 + third.get() * 3 + count.get().colors;
 		}
 	}
 
@@ -161,10 +176,13 @@ public class EnchantColorsFeature extends AddonFeature {
 	}
 
 	public EnchantColorsFeature() {
-		super("enchant_colors", "Enchant colors", "Colors the enchants in item tooltips by how good their level is.", true);
+		super("enchant_colors", "Enchant colors", "Enchants colored by how good they are.", true);
+		pageGroup("Items and inventory");
 		iconRgb(SystemColors.PURPLE_RGB);
 		iconName("sparkle");
 		summary("Enchants colored by how good they are");
+		ultimate.visibleWhen(() -> ultimateStyle.look.get() == Look.COLOR);
+		perfect.visibleWhen(() -> perfectStyle.look.get() == Look.COLOR);
 	}
 
 	public void register() {
@@ -383,8 +401,8 @@ public class EnchantColorsFeature extends AddonFeature {
 		int column = (width - 3 * PREVIEW_PAD) / 2;
 		int left = x + PREVIEW_PAD;
 		int top = y + PREVIEW_PAD;
-		graphics.item(new ItemStack(Items.DIAMOND_SWORD), left, top);
-		graphics.text(font, Component.literal("Aspect of the Dragons"), left + ICON + 2, top + 4, NAME_RARITY, false);
+		graphics.item(new ItemStack(Items.IRON_SWORD), left, top);
+		graphics.text(font, Component.literal("Hyperion"), left + ICON + 2, top + 4, NAME_RARITY, false);
 		int lineY = top + ICON + 2;
 		for (String text : SAMPLE_SWORD) {
 			graphics.text(font, paint(Component.literal(text), EnchantLore.parse(text, SAMPLE), seconds), left, lineY, TEXT_COLOR, false);

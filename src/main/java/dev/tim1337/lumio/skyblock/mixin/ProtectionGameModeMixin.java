@@ -26,14 +26,20 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(MultiPlayerGameMode.class)
 public abstract class ProtectionGameModeMixin {
 	@Inject(method = "handleContainerInput", at = @At("HEAD"), cancellable = true)
-	private void lumio$holdBackClick(int containerId, int slotId, int button, ContainerInput input, Player player, CallbackInfo ci) {
+	private void evskyblock$holdBackClick(int containerId, int slotId, int button, ContainerInput input, Player player, CallbackInfo ci) {
 		if (SkyBlockFeatures.ITEM_PROTECTION.holdsBackClick(containerId, slotId, button, input, player)) {
 			ci.cancel();
+			return;
+		}
+		// only noted: which reward chest the player opens or rerolls, for the chest profit's marks
+		if (net.minecraft.client.Minecraft.getInstance().gui.screen() instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> screen
+			&& screen.getMenu().containerId == containerId) {
+			SkyBlockFeatures.DUNGEON_CHESTS.clicked(screen, slotId);
 		}
 	}
 
 	@Inject(method = "useItem", at = @At("HEAD"), cancellable = true)
-	private void lumio$holdBackUse(Player player, InteractionHand hand, CallbackInfoReturnable<InteractionResult> cir) {
+	private void evskyblock$holdBackUse(Player player, InteractionHand hand, CallbackInfoReturnable<InteractionResult> cir) {
 		if (SkyBlockFeatures.ITEM_PROTECTION.holdsBackUse(player, hand)) {
 			cir.setReturnValue(ItemProtectionFeature.heldBack());
 		}
@@ -41,14 +47,14 @@ public abstract class ProtectionGameModeMixin {
 
 	/** Using an item on a block counts as well: some of these are heads that would be placed. */
 	@Inject(method = "useItemOn", at = @At("HEAD"), cancellable = true)
-	private void lumio$holdBackUseOn(LocalPlayer player, InteractionHand hand, BlockHitResult hit, CallbackInfoReturnable<InteractionResult> cir) {
+	private void evskyblock$holdBackUseOn(LocalPlayer player, InteractionHand hand, BlockHitResult hit, CallbackInfoReturnable<InteractionResult> cir) {
 		if (SkyBlockFeatures.ITEM_PROTECTION.holdsBackUse(player, hand)) {
 			cir.setReturnValue(ItemProtectionFeature.heldBack());
 		}
 	}
 
 	@Inject(method = "interact", at = @At("HEAD"), cancellable = true)
-	private void lumio$holdBackFrame(Player player, Entity entity, EntityHitResult hit, InteractionHand hand, CallbackInfoReturnable<InteractionResult> cir) {
+	private void evskyblock$holdBackFrame(Player player, Entity entity, EntityHitResult hit, InteractionHand hand, CallbackInfoReturnable<InteractionResult> cir) {
 		if (SkyBlockFeatures.ITEM_PROTECTION.holdsBackInteract(player, entity, hand)) {
 			cir.setReturnValue(ItemProtectionFeature.heldBack());
 		}

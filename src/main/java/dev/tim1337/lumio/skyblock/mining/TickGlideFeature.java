@@ -55,21 +55,23 @@ public class TickGlideFeature extends AddonFeature {
 	private final Toggle tint = add(make().toggle("tint", Component.literal("Block tint"), true), "Block tint");
 	private final Slider tintStrength = add(make().slider("tint_strength", Component.literal("Tint strength"), 0.31f, 0.05f, 0.8f, 2), "Block tint");
 	// the colors also color the counter, so they stay visible while the tint is off: a row of their own in the group, not under the tint
-	private final ColorChoice miningColor = add(make().color("mining_color", Component.literal("Mining color"), SystemColors.RED_RGB).inRow("Colors"),
+	private final ColorChoice miningColor = add(make().color("mining_color", Component.literal("Mining color"), SystemColors.RED_RGB).ownColorOnly().inRow("Colors"),
 		"Block tint");
-	private final ColorChoice glideColor = add(make().color("glide_color", Component.literal("Ready color"), SystemColors.GREEN_RGB).inRow("Colors"),
+	private final ColorChoice glideColor = add(make().color("glide_color", Component.literal("Ready color"), SystemColors.GREEN_RGB).ownColorOnly().inRow("Colors"),
 		"Block tint");
 	private final Toggle usePing = add(make().toggle("use_ping", Component.literal("Ping compensation"), true), "Timing",
 		"Turns green early by your ping");
 	// Mining speed the player list does not show because it only applies to some blocks (Heart of the Mountain perks): added to the list's speed
-	// while such a block is mined, as Ping Offset Miner does, with its defaults
-	private final Slider gemstoneSpeed = add(make().slider("gemstone_speed", Component.literal("Extra speed on gemstones"),
-		855f, 0f, 3000f, 0), "Mining speed", "Speed the tab does not show, such as from perks");
-	private final Slider metalSpeed = add(make().slider("metal_speed", Component.literal("Extra speed on Dwarven metals"),
+	// while such a block is mined. 0 at first: the bonus is each player's own, and without it the counter is never early, at worst a tick late
+	private final Slider gemstoneSpeed = add(make().slider("gemstone_speed", Component.literal("Gemstone speed"),
+		0f, 0f, 3000f, 0), "Mining speed", "Speed the tab does not show");
+	private final Slider metalSpeed = add(make().slider("metal_speed", Component.literal("Metal speed"),
 		0f, 0f, 3000f, 0), "Mining speed");
 	{
 		countSize.under(showCount);
 		tintStrength.under(tint);
+		miningColor.visibleWhen(() -> showCount.get() || tint.get());
+		glideColor.visibleWhen(() -> showCount.get() || tint.get());
 	}
 
 	@Override
@@ -121,7 +123,8 @@ public class TickGlideFeature extends AddonFeature {
 	private long speedReadAt;
 
 	public TickGlideFeature() {
-		super("tick_glide", "Tick glide", "The ticks of the block you mine under the crosshair, green when you can move on to the next one.", false);
+		super("tick_glide", "Tick glide", "The ticks of the block you mine.", false);
+		pageGroup("While mining");
 		iconRgb(SystemColors.RED_RGB);
 		iconName("timer");
 		summary("The ticks of the block under your crosshair");
@@ -232,6 +235,11 @@ public class TickGlideFeature extends AddonFeature {
 			return tungstenCobble ? 5600 : 20;
 		}
 		return 0;
+	}
+
+	/** @return whether a block is a Dwarven metal (mithril, titanium, tungsten, umber, glacite) where the player is */
+	static boolean dwarvenMetal(BlockState state) {
+		return kindOf(state) == Kind.METAL;
 	}
 
 	/** @return whether a block is a gemstone, a Dwarven metal (mithril, titanium, tungsten, umber, glacite), or something else */

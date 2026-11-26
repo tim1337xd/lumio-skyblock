@@ -1,5 +1,7 @@
 package dev.tim1337.lumio.skyblock.slayer;
 
+import dev.tim1337.lumio.api.experimental.debug.DebugHooks;
+import dev.tim1337.lumio.skyblock.SkyBlockDebug;
 import dev.tim1337.lumio.api.experimental.util.Sight;
 import dev.tim1337.lumio.api.feature.AddonFeature;
 import dev.tim1337.lumio.api.setting.Action;
@@ -11,7 +13,6 @@ import dev.tim1337.lumio.api.setting.Toggle;
 import static dev.tim1337.lumio.skyblock.SkyBlockAddon.make;
 import dev.tim1337.lumio.api.experimental.draw.SystemColors;
 import dev.tim1337.lumio.api.experimental.ui.Toasts;
-import dev.tim1337.lumio.api.experimental.util.Debug;
 import dev.tim1337.lumio.skyblock.SkyBlockFeatures;
 import dev.tim1337.lumio.skyblock.data.SkyBlock;
 import dev.tim1337.lumio.skyblock.data.SkyBlockArea;
@@ -99,9 +100,7 @@ public class MinibossFeature extends AddonFeature {
 	private final Toggle bossHighlight = add(make().toggle("boss_highlight", Component.literal("Your boss"), false), "Highlight",
 		"Also the boss you carry");
 	private final Toggle drops = add(make().toggle("drops", Component.literal("Drops"), true), "Highlight",
-		"What your boss dropped glows in its rarity color");
-	private final Toggle dropDebug = add(make().toggle("drop_debug", Component.literal("Log every dropped item"), false), "Highlight",
-		"For finding out why a drop has no highlight: a line per item in the log");
+		"Your boss's drops glow in rarity color");
 	private final ColorChoice color = add(make().color("color", Component.literal("Color"), STRONG_ORANGE), "Highlight");
 	private final Toggle alert = add(make().toggle("alert", Component.literal("Miniboss alert"), true), "Alert",
 		"A short note at the top when one spawns");
@@ -111,6 +110,8 @@ public class MinibossFeature extends AddonFeature {
 	private final Toggle bossAlert = add(make().toggle("boss_alert", Component.literal("Also for the slayer boss"), false), "Alert");
 
 	{
+		// drops glow in their rarity's color
+		color.visibleWhen(() -> highlight.get() || bossHighlight.get());
 		sound.under(alert);
 		volume.under(alert);
 		bossAlert.under(alert);
@@ -138,7 +139,7 @@ public class MinibossFeature extends AddonFeature {
 	private int tick;
 
 	public MinibossFeature() {
-		super("minibosses", "Highlight", "Outlines for your slayer quest's minibosses, its boss and what the boss drops, while you can see them, and an alert when a miniboss spawns.", false);
+		super("minibosses", "Highlight", "Slayer minibosses outlined while you see them.", false);
 		iconRgb(SystemColors.ORANGE_RGB);
 		iconName("crown");
 		summary("Minibosses, your boss and its drops");
@@ -243,7 +244,9 @@ public class MinibossFeature extends AddonFeature {
 		String me = client.player.getGameProfile().name();
 		String carried = SkyBlockFeatures.SLAYER_PHASE == null ? "" : SkyBlockFeatures.SLAYER_PHASE.carriedName();
 		boolean watched = Minibosses.watched(owner, me, SkyBlockArea.slayerQuest(), carried);
-		Debug.log("Miniboss {} spawned, belongs to {} ({})", miniboss, owner, watched ? "watched" : "ignored");
+		if (DebugHooks.ACTIVE) {
+			DebugHooks.log(SkyBlockDebug.SLAYER, "Miniboss {} spawned, belongs to {} ({})", miniboss, owner, watched ? "watched" : "ignored");
+		}
 		if (!watched) {
 			return;
 		}
@@ -347,10 +350,6 @@ public class MinibossFeature extends AddonFeature {
 		return isEnabled() && drops.get();
 	}
 
-	/** @return whether each dropped item writes why it is or is not highlighted to the log */
-	boolean dropDebug() {
-		return dropDebug.get();
-	}
 
 	/** Draws what stands above the drops the player sees. */
 	public void drawDropLabels(GuiGraphicsExtractor graphics, DeltaTracker tracker) {

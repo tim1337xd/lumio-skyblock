@@ -1,6 +1,7 @@
 package dev.tim1337.lumio.skyblock.hud;
 
 import dev.tim1337.lumio.api.feature.AddonFeature;
+import dev.tim1337.lumio.api.setting.MultiToggle;
 import dev.tim1337.lumio.api.setting.Slider;
 import dev.tim1337.lumio.api.setting.Toggle;
 
@@ -28,18 +29,45 @@ public class DropToastFeature extends AddonFeature {
 
 	private final Slider showFrom = add(make().slider(SHOW_FROM_KEY, Component.literal("Show from"), DEFAULT_COINS, LEAST_COINS, MOST_COINS, 0)
 		.logarithmic().snapTo(SNAP_COINS).coins(), "Drops");
+	/** How a drop shows: the pop-up as before, the game's title, a chat line, or several of them. */
+	private final ShowAs showAs = new ShowAs("show_as", true, false, false);
+	private final MultiToggle showAsSetting = add(showAs.setting(), "Drops");
+	private final Slider titleFrom = add(make().slider("title_from", Component.literal("Title from"), DEFAULT_COINS, LEAST_COINS, MOST_COINS, 0)
+		.logarithmic().snapTo(SNAP_COINS).coins(), "Drops", "Cheaper drops: pop-up or chat only");
+	private final Slider titleSeconds = add(make().slider("title_seconds", Component.literal("Duration"), 1.5f, 1f, 5f, 1).unit(" s"), "Drops");
 	private final Toggle sound = add(make().toggle("sound", Component.literal("Sound"), true), "Sound");
 	private final Slider volume = add(make().slider("volume", Component.literal("Volume"), 0.6f, 0.05f, 1f, 2).percent(), "Sound");
 
 	{
 		volume.under(sound);
+		titleFrom.visibleWhen(showAs::title);
+		titleSeconds.visibleWhen(showAs::title);
+	}
+
+	private static final float MILLIS_PER_SECOND = 1000f;
+
+	/** @return how a drop of this value shows: a title only from "Title from", and never nowhere */
+	public ShowAs.Chosen display(double value) {
+		return showAs.chosen().forValue(value, titleFrom.get());
+	}
+
+	/** @return how long a drop's title shows */
+	public long titleMillis() {
+		return Math.round(titleSeconds.get() * MILLIS_PER_SECOND);
+	}
+
+	/** @return the line under a drop's title: its value, then what the pop-up says under the name (the magic find) */
+	static String titleDetail(String value, String detail) {
+		return detail.isEmpty() ? value : value + " · " + detail;
 	}
 
 	public DropToastFeature() {
-		super("drop_toasts", "Drop toasts", "A short note at the top when you get a valuable drop, with its value and your magic find.", true);
+		super("drop_toasts", "Drop alerts", "A note when you get a valuable drop.", true);
+		pageGroup("Helpers");
+		searchWords("toast toasts drop toasts");
 		iconRgb(SystemColors.PURPLE_RGB);
 		iconName("gem");
-		summary("A short note at the top when you get a valuable drop");
+		summary("A note when you get a valuable drop");
 	}
 
 	/** @return whether a drop of this value gets a toast */

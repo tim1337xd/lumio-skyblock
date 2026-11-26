@@ -1,5 +1,7 @@
 package dev.tim1337.lumio.skyblock.arrows;
 
+import dev.tim1337.lumio.api.experimental.debug.DebugHooks;
+import dev.tim1337.lumio.skyblock.SkyBlockDebug;
 import dev.tim1337.lumio.api.draw.Canvas;
 import dev.tim1337.lumio.api.experimental.draw.HudTheme;
 import dev.tim1337.lumio.api.experimental.draw.PanelKit;
@@ -7,7 +9,6 @@ import dev.tim1337.lumio.api.experimental.draw.SystemColors;
 import dev.tim1337.lumio.api.experimental.draw.TextScale;
 import dev.tim1337.lumio.api.experimental.ui.ExtraStatusBar;
 import dev.tim1337.lumio.api.experimental.ui.Toasts;
-import dev.tim1337.lumio.api.experimental.util.Debug;
 import dev.tim1337.lumio.api.experimental.util.TextColors;
 import dev.tim1337.lumio.api.feature.AddonPanel;
 import dev.tim1337.lumio.api.setting.Choice;
@@ -17,19 +18,15 @@ import static dev.tim1337.lumio.skyblock.SkyBlockAddon.make;
 import dev.tim1337.lumio.skyblock.data.SkyBlock;
 import dev.tim1337.lumio.skyblock.data.SkyBlockArea;
 
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ItemLore;
@@ -39,8 +36,9 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * The arrows in the quiver, as a status bar or a small panel, and the warning when they run low. It only reads what the game shows (the preview item in the last hotbar slot and the server's messages) and sends nothing. A shot is
- * counted when an arrow of the player appears; the next real value goes first.
+ * The arrows in the quiver, as a status bar or a small panel, and the warning when they run low. It only reads what the game shows (the preview item in the last hotbar slot and the server's messages) and sends nothing, and never guesses a shot:
+ * a changed value shows once it has held for a few ticks, so a correction of the server right after shows no jump. With a chestplate that keeps
+ * arrows ({@link InfiniteArrows}) it shows ∞.
  */
 public class ArrowsHudFeature extends AddonPanel {
 	/** How it is shown. */
@@ -77,8 +75,6 @@ public class ArrowsHudFeature extends AddonPanel {
 
 	/** The quiver's preview item lies in the last slot of the hotbar. */
 	private static final int QUIVER_SLOT = 8;
-	/** An arrow without a known owner counts as the player's within this distance from the eyes, squared, and with a bow in hand. */
-	private static final double NEAR_EYES_SQUARED = 9.0;
 	private static final String QUIVER_MENU = "Quiver";
 	private static final String ARROW_WORD = "Arrow";
 	private static final String BOW_LORE = "BOW";
@@ -102,8 +98,16 @@ public class ArrowsHudFeature extends AddonPanel {
 	private boolean holdsBow;
 	private boolean menuNoted;
 	private boolean otherItemNoted;
-	private boolean strayNoted;
-	private int shownCount = -1;
+	/** The count shown, settled ({@link ArrowSettle}), and the one the panel's text was made for. */
+	private int shownCount;
+	private int textCount = -1;
+	private boolean textInfinite;
+	private final ArrowSettle settle = new ArrowSettle();
+	private long ticks;
+	/** The chestplate worn when last looked at, and whether it makes the arrows infinite. */
+	private ItemStack lastChest;
+	private boolean infinite;
+	private static final String INFINITE = "∞";
 	private String countText = "";
 	private int measured = 110;
 	/** How many warnings and their sounds there were, for what checks that they came. */
@@ -111,38 +115,14 @@ public class ArrowsHudFeature extends AddonPanel {
 	private int sounds;
 
 	public ArrowsHudFeature() {
-		super("arrows", "Arrows", "How many arrows are in your quiver, and a warning when they run low.", true,
+		super("arrows", "Arrows", "Arrows in your quiver, with a low warning.", true,
 			Anchor.CENTER, true, 0f, 70f);
+		pageGroup("On screen");
 		iconRgb(SystemColors.ORANGE_RGB);
 		iconName("sword");
-		summary("Your quiver, and a warning when it runs low");
-	}
-
-	/** Listens for arrows appearing; last of the registrations, as it cannot be undone. */
-	public void register() {
-		ClientEntityEvents.ENTITY_LOAD.register(this::onEntity);
-	}
-
-	private void onEntity(Entity entity, ClientLevel level) {
-		if (!(entity instanceof AbstractArrow arrow) || !isEnabled() || !SkyBlock.allowed() || !count.known()) {
-			return;
-		}
-		Player player = Minecraft.getInstance().player;
-		if (player == null) {
-			return;
-		}
-		Entity owner = arrow.getOwner();
-		boolean own = owner == player;
-		if (!own && owner == null && holdsBow && arrow.position().distanceToSqr(player.getEyePosition()) <= NEAR_EYES_SQUARED) {
-			own = true;
-			if (!strayNoted) {
-				strayNoted = true;
-				Debug.log("Arrows: an arrow without an owner counted as a shot, close to the player with a bow in hand");
-			}
-		}
-		if (own) {
-			tell(count.shot(warnLevel()));
-		}
+		summary("Your quiver, with a low warning");
+		// the bar and this panel are the arrows in their two styles: one entry in the HUD editor
+		ExtraStatusBar.standsFor(this, () -> style.get() == Style.BAR);
 	}
 
 	private int warnLevel() {
@@ -171,7 +151,10 @@ public class ArrowsHudFeature extends AddonPanel {
 			ExtraStatusBar.hide();
 			if (player == null) {
 				count.clear();
+				settle.clear();
 				lastQuiver = null;
+				lastChest = null;
+				infinite = false;
 			}
 			return;
 		}
@@ -180,6 +163,13 @@ public class ArrowsHudFeature extends AddonPanel {
 			lastQuiver = quiver;
 			readQuiver(quiver);
 		}
+		ItemStack chest = player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.CHEST);
+		if (chest != lastChest) {
+			// the moment it is put on or taken off
+			lastChest = chest;
+			infinite = InfiniteArrows.from(chest.isEmpty() ? null : dev.tim1337.lumio.skyblock.data.ItemGains.idOf(chest));
+		}
+		shownCount = settle.update(count.count(), ++ticks);
 		ItemStack held = player.getMainHandItem();
 		if (held != lastHeld) {
 			lastHeld = held;
@@ -187,7 +177,7 @@ public class ArrowsHudFeature extends AddonPanel {
 		}
 		noteMenu(client);
 		if (style.get() == Style.BAR && wanted()) {
-			ExtraStatusBar.show(count.count(), count.most(), count.name(), numberRgb());
+			ExtraStatusBar.show(infinite ? count.most() : shownCount, count.most(), infinite ? count.name() + " ∞" : count.name(), numberRgb());
 		} else {
 			ExtraStatusBar.hide();
 		}
@@ -205,7 +195,9 @@ public class ArrowsHudFeature extends AddonPanel {
 		} else if (!otherItemNoted && name.contains(QUIVER_MENU)) {
 			// a form of the item no one has seen yet, such as an empty quiver: one line to learn it from
 			otherItemNoted = true;
-			Debug.log("Arrows: a quiver item that says nothing of arrows: {} / {}", name, lines);
+			if (DebugHooks.ACTIVE) {
+				DebugHooks.log(SkyBlockDebug.PANELS, "Arrows: a quiver item that says nothing of arrows: {} / {}", name, lines);
+			}
 		}
 	}
 
@@ -240,7 +232,9 @@ public class ArrowsHudFeature extends AddonPanel {
 		if (open && !menuNoted && client.gui.screen() instanceof AbstractContainerScreen<?> menu) {
 			for (var slot : menu.getMenu().slots) {
 				if (slot.hasItem() && slot.getItem().getHoverName().getString().contains(ARROW_WORD)) {
-					Debug.log("Arrows: the quiver menu has {}: {}", slot.getItem().getHoverName().getString(), lore(slot.getItem()));
+					if (DebugHooks.ACTIVE) {
+						DebugHooks.log(SkyBlockDebug.PANELS, "Arrows: the quiver menu has {}: {}", slot.getItem().getHoverName().getString(), lore(slot.getItem()));
+					}
 					break;
 				}
 			}
@@ -249,7 +243,8 @@ public class ArrowsHudFeature extends AddonPanel {
 	}
 
 	private void tell(ArrowCount.Alarm alarm) {
-		if (alarm == ArrowCount.Alarm.NONE) {
+		// with arrows that are never used up there is nothing to warn of
+		if (alarm == ArrowCount.Alarm.NONE || infinite) {
 			return;
 		}
 		warnings++;
@@ -261,7 +256,7 @@ public class ArrowsHudFeature extends AddonPanel {
 	}
 
 	private boolean low() {
-		return count.known() && count.count() < warnLevel();
+		return !infinite && count.known() && shownCount < warnLevel();
 	}
 
 	/** @return whether the arrows are to be shown now */
@@ -274,7 +269,7 @@ public class ArrowsHudFeature extends AddonPanel {
 		if (!count.known() || !low()) {
 			return 0;
 		}
-		return count.count() == 0 ? OUT_RGB : LOW_RGB;
+		return shownCount == 0 ? OUT_RGB : LOW_RGB;
 	}
 
 	@Override
@@ -301,10 +296,11 @@ public class ArrowsHudFeature extends AddonPanel {
 	public void drawPanel(Canvas ui, GuiGraphicsExtractor graphics, Minecraft client) {
 		boolean real = count.known();
 		String name = real ? count.name() : SAMPLE_NAME;
-		int value = real ? count.count() : SAMPLE_COUNT;
-		if (value != shownCount) {
-			shownCount = value;
-			countText = String.format(Locale.ROOT, "%,d", value);
+		int value = real ? shownCount : SAMPLE_COUNT;
+		if (value != textCount || infinite != textInfinite) {
+			textCount = value;
+			textInfinite = infinite;
+			countText = infinite && real ? INFINITE : String.format(Locale.ROOT, "%,d", value);
 		}
 		float nameWidth = ui.widthScaled(name, TextScale.BODY);
 		float dotWidth = ui.widthScaled(DOT, TextScale.BODY);

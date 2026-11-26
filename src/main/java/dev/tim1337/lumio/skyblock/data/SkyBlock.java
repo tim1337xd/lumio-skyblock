@@ -72,7 +72,8 @@ public final class SkyBlock {
 		sidebarSkyBlock = false;
 		sidebarTitle = "";
 		Minecraft client = Minecraft.getInstance();
-		if (client.level == null) {
+		// without a game (in a unit test) or a world there is no SkyBlock
+		if (client == null || client.level == null) {
 			return;
 		}
 		Scoreboard scoreboard = client.level.getScoreboard();

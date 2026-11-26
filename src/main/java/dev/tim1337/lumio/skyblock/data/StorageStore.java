@@ -5,10 +5,14 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -34,6 +38,7 @@ final class StorageStore {
 	private static final int MENU_FIRST_BACKPACK = 27;
 	private static final int MENU_BACKPACKS = 18;
 	private static final String LOCKED = "locked";
+	private static final String EMPTY = "empty";
 
 	private StorageStore() {
 	}
@@ -64,6 +69,48 @@ final class StorageStore {
 		}
 		return slot >= MENU_FIRST_BACKPACK && slot < MENU_FIRST_BACKPACK + MENU_BACKPACKS ? "b" + (slot - MENU_FIRST_BACKPACK + 1) : null;
 	}
+
+	/** What a storage menu item says of its page: one to open, a locked page or slot, or a backpack slot without a backpack. */
+	enum MenuState {
+		PAGE, LOCKED, EMPTY
+	}
+
+	/** @return what the storage menu item of this plain name says of its page */
+	static MenuState stateOf(String name) {
+		String lower = name.toLowerCase(Locale.ROOT);
+		if (lower.contains(LOCKED)) {
+			return MenuState.LOCKED;
+		}
+		return lower.startsWith(EMPTY) ? MenuState.EMPTY : MenuState.PAGE;
+	}
+
+	/**
+	 * @param menuNames the storage menu's items by page key, by their plain names, or none when the menu was never open on this profile
+	 * @param seen      the keys of the pages seen
+	 * @return the pages that exist, ender chest first, then backpacks, each in order: with the menu known, the unlocked ender chest pages and the
+	 *         slots that hold a backpack; before, the pages seen
+	 */
+	static List<String> shownKeys(Map<String, String> menuNames, Collection<String> seen) {
+		Set<String> keys = new TreeSet<>(PAGE_ORDER);
+		if (menuNames.isEmpty()) {
+			keys.addAll(seen);
+		} else {
+			menuNames.forEach((key, name) -> {
+				if (stateOf(name) == MenuState.PAGE) {
+					keys.add(key);
+				}
+			});
+		}
+		return new ArrayList<>(keys);
+	}
+
+	/** Ender chest pages first, then backpacks, each by number. */
+	private static final Comparator<String> PAGE_ORDER = (a, b) -> {
+		if (a.charAt(0) != b.charAt(0)) {
+			return a.charAt(0) == 'e' ? -1 : 1;
+		}
+		return Integer.compare(Integer.parseInt(a.substring(1)), Integer.parseInt(b.substring(1)));
+	};
 
 	/** @return the pages and the storage menu's items, by page, in the form of the file */
 	static JsonObject toJson(Map<String, Saved> pages, Map<String, String> menu) {

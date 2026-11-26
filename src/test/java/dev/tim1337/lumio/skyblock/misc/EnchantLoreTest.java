@@ -30,6 +30,52 @@ class EnchantLoreTest {
 		return tiers;
 	}
 
+	/** The data of the enchants on the lines below: their levels by the books and enchanting costs of the item repository. */
+	private static EnchantTiers armorTiers() {
+		EnchantTiers tiers = EnchantTiers.of(JsonParser.parseString("""
+			{"enchants_xp_cost":{"growth":[1,2,3,4,5],"protection":[1,2,3,4,5],"rejuvenate":[10,20,30,40,50],"smarty_pants":[20,40,60,80,100],
+			"strong_mana":[30,45,60,75,90,180,240,300,360,420],"mana_vampire":[1,2,3,4,5,6,7,8,9,10],"ice_cold":[1,2,3,4,5]},
+			"max_xp_table_levels":{"growth":5,"protection":5},"enchants":{"CHESTPLATE":["ultimate_legion", "ultimate_first_impression"]}}""").getAsJsonObject());
+		tiers.addBooks(java.util.Map.of("growth", 7, "protection", 7, "rejuvenate", 5, "smarty_pants", 5, "strong_mana", 10, "mana_vampire", 10, "ice_cold", 5));
+		return tiers;
+	}
+
+	@Test
+	void aNamesWordThatStartsLikeANumeralIsNoLevel() {
+		EnchantTiers tiers = armorTiers();
+		// the lines of the armor piece: an enchant the repository does not know yet (Strong Vitality) must not take the others' colors away
+		String first = "Legion V, Growth VII, Protection VII";
+		List<EnchantLore.Span> spans = EnchantLore.parse(first, tiers);
+		assertEquals(3, spans.size());
+		assertEquals(EnchantTiers.Tier.ULTIMATE, spans.get(0).tier());
+		assertEquals(EnchantTiers.Tier.PERFECT, spans.get(1).tier());
+		assertEquals(EnchantTiers.Tier.PERFECT, spans.get(2).tier());
+		String second = "Rejuvenate V, Smarty Pants V, Strong Vitality X";
+		spans = EnchantLore.parse(second, tiers);
+		assertEquals(2, spans.size(), "the two the repository knows; the third keeps the game's color");
+		assertEquals("Rejuvenate V", textOf(second, spans.get(0)));
+		assertEquals(EnchantTiers.Tier.PERFECT, spans.get(0).tier());
+		assertEquals("Smarty Pants V", textOf(second, spans.get(1)));
+		assertEquals(EnchantTiers.Tier.PERFECT, spans.get(1).tier());
+		// names whose second word starts with I, V, X, L or C
+		String mana = "Mana Vampire X, Ice Cold V, Strong Mana X";
+		spans = EnchantLore.parse(mana, tiers);
+		assertEquals(3, spans.size());
+		assertEquals("Mana Vampire X", textOf(mana, spans.get(0)));
+		assertEquals("Ice Cold V", textOf(mana, spans.get(1)));
+		spans.forEach(span -> assertEquals(EnchantTiers.Tier.PERFECT, span.tier()));
+		assertEquals(EnchantTiers.Tier.ULTIMATE, EnchantLore.parse("First Impression III", tiers).getFirst().tier());
+		// numbers for numerals, a level below the most, and a comma at a line's end where the enchants go on in the next line
+		spans = EnchantLore.parse("Mana Vampire 10, Growth 6, Protection 5,", tiers);
+		assertEquals(3, spans.size());
+		assertEquals(EnchantTiers.Tier.PERFECT, spans.get(0).tier());
+		assertEquals(EnchantTiers.Tier.GREAT, spans.get(1).tier());
+		assertEquals(EnchantTiers.Tier.GOOD, spans.get(2).tier());
+		// a description stays a description
+		assertTrue(EnchantLore.parse("Grants Vitality when hit", tiers).isEmpty());
+		assertTrue(EnchantLore.parse("Ice Cold V reduces damage", tiers).isEmpty());
+	}
+
 	@Test
 	void gravityAndDrainAtTheirMost() {
 		EnchantTiers tiers = withBooks();

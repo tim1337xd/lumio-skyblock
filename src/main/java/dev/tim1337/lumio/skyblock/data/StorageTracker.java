@@ -3,6 +3,7 @@ package dev.tim1337.lumio.skyblock.data;
 import dev.tim1337.lumio.api.experimental.util.Logs;
 import dev.tim1337.lumio.api.experimental.util.ModFiles;
 import dev.tim1337.lumio.api.experimental.util.TextColors;
+import dev.tim1337.lumio.api.experimental.util.Threads;
 import dev.tim1337.lumio.skyblock.SkyBlockFeatures;
 
 import com.google.gson.Gson;
@@ -26,10 +27,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Objects;
-import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -81,6 +80,10 @@ public final class StorageTracker {
 	/** The same items as they are kept in the file: what was read and not yet turned back into items, which needs a world, and what is written. */
 	private static final Map<String, String> MENU_ENCODED = new LinkedHashMap<>();
 	private static boolean menuChanged;
+	/** Raised whenever the pages or the menu change; the shown keys are made again then. */
+	private static int version;
+	private static int keysFor = -1;
+	private static List<String> keys;
 	private static boolean menuRead;
 
 	/** Caches the storage menu items that open pages. */
@@ -101,6 +104,7 @@ public final class StorageTracker {
 			MENU_ITEMS.clear();
 			MENU_ENCODED.clear();
 			MENU_ITEMS.putAll(found);
+			version++;
 			menuChanged = true;
 			if (dirtySince == 0) {
 				dirtySince = System.currentTimeMillis();
@@ -124,18 +128,25 @@ public final class StorageTracker {
 		return MENU_ITEMS;
 	}
 
-	/** @return the keys of the known pages: ender chest first, then backpacks, each in order */
+	/**
+	 * @return the keys of the pages that exist, ender chest first, then backpacks, each in order: once the storage menu was open on this profile, its
+	 *         unlocked ender chest pages and the slots that hold a backpack; before, the pages seen. Made again only when the pages or the menu change.
+	 */
 	public static List<String> knownKeys() {
-		load();
-		Set<String> keys = new TreeSet<>((a, b) -> {
-			if (a.charAt(0) != b.charAt(0)) {
-				return a.charAt(0) == 'e' ? -1 : 1;
-			}
-			return Integer.compare(Integer.parseInt(a.substring(1)), Integer.parseInt(b.substring(1)));
-		});
-		keys.addAll(PAGES.keySet());
-		keys.addAll(menuItems().keySet());
-		return new ArrayList<>(keys);
+		Map<String, ItemStack> menu = menuItems();
+		int state = PAGES.size() * 31 + menu.size() + version * 961;
+		if (keys == null || state != keysFor) {
+			keysFor = state;
+			Map<String, String> names = new LinkedHashMap<>();
+			menu.forEach((key, item) -> names.put(key, TextColors.noColors(item.getHoverName().getString()).strip()));
+			keys = StorageStore.shownKeys(names, PAGES.keySet());
+		}
+		return keys;
+	}
+
+	/** @return whether the storage menu was open on this profile, so the pages that exist are known */
+	public static boolean menuKnown() {
+		return !menuItems().isEmpty();
 	}
 	/** Whether the file was read and taken in, and whether its reading has begun (on the writer thread, as it can be several megabytes). */
 	private static boolean loaded;
@@ -171,6 +182,7 @@ public final class StorageTracker {
 		boolean first = profile == null;
 		profile = named;
 		PAGES.clear();
+		version++;
 		MENU_ITEMS.clear();
 		MENU_ENCODED.clear();
 		menuChanged = false;
@@ -323,15 +335,12 @@ public final class StorageTracker {
 			page.seen = saved.seen();
 			page.encoded = saved.items();
 			PAGES.put(key, page);
+			version++;
 		});
 	}
 
 	/** Writes the file in the background: with every page known it is several megabytes, too much to write between two frames. */
-	private static final ExecutorService WRITER = Executors.newSingleThreadExecutor(runnable -> {
-		Thread thread = new Thread(runnable, "Lumio storage");
-		thread.setDaemon(true);
-		return thread;
-	});
+	private static final ExecutorService WRITER = Threads.daemonExecutor("Lumio storage");
 
 	private static void save() {
 		dirtySince = 0;

@@ -1,12 +1,13 @@
-## Inspiration
-SkyHanni | The ideas behind the SkyBlock panels and trackers, the Experimentation Table helper (with its pick-block clicks) and the dragon tracker, Pet Candy Used, Explosions Hider, the corpse sharing format, the Cocoon Overlay, the enchant colors, Mouse lock and how pet icons tell pets apart.
-SkySoft | Keep Terrain Loaded, the storage overlay and the item list.
-NotEnoughUpdates | The item list and its recipes.
-Bobby | How the world is cached.
-NoammAddons and Odin | The rules for where etherwarp lands.
-Ping Offset Miner | The idea of tick glide and its mining speed default.
+## Data and formats
+Odin | Its room data, quiz answers, puzzle solutions, Arrow Align layouts and three skull textures, used under its license (BSD-3-Clause); its dungeon waypoint format and its party texts for Mimic, Prince and Bat.
+NoammAddons | The skull textures of the Watcher and his blood mobs (data, CC0).
+NoammAddons and Odin | The rules for where an etherwarp lands.
+Skyblocker | Two measured values of the Pickobulus throw.
+SkyHanni-REPO | Its list of sea creatures (data, MIT).
+SkyHanni | Its corpse sharing format is read and written, its party message of a rare catch is read.
 ## Parts and services
 Hypixel API | Bazaar prices, items and the mayor.
-Moulberry | Lowest auction prices.
-Coflnet | Auction prices of single items.
-NotEnoughUpdates repository | Every item and its recipes for the item list.
+SkyCofl (sky.coflnet.com) | Auction prices: lowest BIN, median and volume of every auction item.
+NotEnoughUpdates repository | Every item and its recipes, pets' heads, sacks, enchant levels and the Abiphone contacts.
+## Thanks
+The SkyBlock modding community | Their mods showed what players need.

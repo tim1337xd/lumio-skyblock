@@ -30,7 +30,7 @@ public final class SkyBlockChatTabFeature extends AddonFeature implements ChatTa
 	private static final String BUILT_IN = "/assets/lumio-skyblock/skyblock/chat_formats.json";
 	private static final String PLAYERS_FILE = "skyblock_chat_formats.json";
 
-	private final Toggle keepOut = add(settings().toggle("keep_out_of_all", Component.literal("Keep game messages out of All"), false), null,
+	private final Toggle keepOut = add(settings().toggle("keep_out_of_all", Component.literal("Game lines out of All"), false), null,
 		"All then shows only what players write");
 	/** The formats with the player's own, read in the background as the game starts: the file is not read on the game's thread. */
 	private final CompletableFuture<SkyBlockChatFormats> reading = CompletableFuture.supplyAsync(() -> SkyBlockChatFormats.read(builtIn(), playersFile()));

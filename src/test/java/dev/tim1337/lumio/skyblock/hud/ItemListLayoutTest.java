@@ -1,21 +1,16 @@
 package dev.tim1337.lumio.skyblock.hud;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
-import dev.tim1337.lumio.skyblock.hud.ItemListLayout.Places;
-
-/** The bar always shows, and the list and the item's window fit, at every window size and GUI scale. */
+/** The item's window, where it takes the inventory's place, fits at every window size and GUI scale. */
 class ItemListLayoutTest {
 	private static final int[][] WINDOWS = {{1280, 720}, {1366, 768}, {1600, 900}, {1920, 1080}, {2000, 1140}, {2560, 1440}, {3440, 1440}, {3840, 2160}};
 	private static final int INVENTORY_WIDTH = 176;
 	private static final int INVENTORY_HEIGHT = 166;
 	private static final int CHEST_HEIGHT = 222;
-	private static final int BAR_WIDTH = 220;
-	private static final int BAR_HEIGHT = 16;
 	/** A wide window: an inventory with the recipe book open. */
 	private static final int WIDE_WINDOW = 323;
 	private static final int AUTO = 0;
@@ -60,61 +55,10 @@ class ItemListLayoutTest {
 		assertTrue(box[0] >= 0 && box[1] >= 0 && box[0] + box[2] <= width && box[1] + box[3] <= height, what + ": " + java.util.Arrays.toString(box) + " on " + width + "x" + height);
 	}
 
-	/** Six columns of items at the usual size, with the area's padding. */
-	private static final int LEAST = 176;
-
-	private static Places at(int width, int height, int[] window) {
-		return ItemListLayout.places(width, height, window, BAR_WIDTH, BAR_HEIGHT, LEAST);
-	}
-
-	private static boolean overlaps(int[] a, int[] b) {
-		return a[0] < b[0] + b[2] && b[0] < a[0] + a[2] && a[1] < b[1] + b[3] && b[1] < a[1] + a[3];
-	}
-
 	@Test
-	void theBarIsAlwaysThereAndOnTheScreen() {
-		everywhere((width, height, window, what) -> onScreen(at(width, height, window).bar(), width, height, what));
-	}
-
-	@Test
-	void theAreaHasRoomEverywhereAndKeepsOffTheWindowAndTheBar() {
+	void theItemWindowOverTheInventoryFitsEverywhere() {
 		everywhere((width, height, window, what) -> {
-			Places places = at(width, height, window);
-			assertTrue(places.hasList(), what + ": " + java.util.Arrays.toString(places.list()));
-			onScreen(places.list(), width, height, what);
-			assertFalse(overlaps(places.list(), window), what);
-			assertFalse(overlaps(places.list(), places.bar()), what);
-		});
-	}
-
-	@Test
-	void besideTheInventoryTheAreaReachesTheRightEdge() {
-		// 1080p at GUI 2 with Lumio's inventory moved left, as on the player's screen: about 19 columns of 26
-		int[] window = {265, 300, INVENTORY_WIDTH, INVENTORY_HEIGHT};
-		Places places = at(960, 540, window);
-		assertEquals(window[0] + window[2] + ItemListLayout.AREA_GAP, places.list()[0]);
-		assertEquals(960 - ItemListLayout.RIGHT_MARGIN, places.list()[0] + places.list()[2]);
-		int columns = (places.list()[2] - 2 * ItemSearchPanel.PAD + 6) / 26;
-		assertTrue(columns >= 17 && columns <= 20, "columns " + columns);
-		// the bar is centered under the area
-		assertEquals(places.list()[0] + places.list()[2] / 2, places.bar()[0] + places.bar()[2] / 2, 1);
-	}
-
-	@Test
-	void aSmallWindowPutsTheAreaBelowOrAboveTheInventory() {
-		int width = 320;
-		int height = 240;
-		int[] window = centered(width, height, INVENTORY_WIDTH, INVENTORY_HEIGHT - 60);
-		Places places = at(width, height, window);
-		assertTrue(places.list()[1] >= window[1] + window[3] || places.list()[1] + places.list()[3] <= window[1], java.util.Arrays.toString(places.list()));
-		assertEquals(width - 2 * ItemListLayout.MARGIN, places.list()[2]);
-	}
-
-	@Test
-	void theItemWindowFitsAndKeepsOffTheList() {
-		everywhere((width, height, window, what) -> {
-			Places places = at(width, height, window);
-			int[] box = ItemListLayout.detail(width, height, window, places.list()[0]);
+			int[] box = ItemListLayout.detail(width, height, window, width);
 			onScreen(box, width, height, what);
 			assertTrue(box[2] >= ItemListLayout.DETAIL_LEAST_WIDTH, what);
 		});

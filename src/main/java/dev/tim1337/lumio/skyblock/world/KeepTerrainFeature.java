@@ -127,10 +127,10 @@ public class KeepTerrainFeature extends AddonFeature {
 	}
 
 	public KeepTerrainFeature() {
-		super("keep_terrain", "Keep terrain loaded", "The islands you choose are saved as you see them, and stay as far as your render distance reaches, not only as far as the server sends.", false);
+		super("keep_terrain", "Keep terrain loaded", "Islands stay loaded as far as you see.", false);
 		iconRgb(SystemColors.GREEN_RGB);
 		iconName("map");
-		summary("Keeps the islands you choose loaded as you saw them");
+		summary("Keeps chosen islands loaded");
 	}
 
 	public void register() {

@@ -1,0 +1,270 @@
+{
+  "arrows" : {
+    "glow" : false
+  },
+  "boss_label" : {
+    "look" : "MINIMAL",
+    "shows" : {
+      "show_bar" : true,
+      "show_count" : false,
+      "show_kind" : true,
+      "show_steps" : true,
+      "show_value" : true
+    }
+  },
+  "break_reset_fix" : {
+    "enabled" : true
+  },
+  "cocoons" : {
+    "look" : "MINIMAL",
+    "panel_theme" : "GLASS"
+  },
+  "commissions_hud" : {
+    "glow" : false,
+    "glow_soft" : false,
+    "look_mode" : "CUSTOM"
+  },
+  "corpse_profit" : {
+    "glow" : false
+  },
+  "custom_scoreboard" : {
+    "enabled" : true,
+    "parts" : {
+      "known" : [
+        "space",
+        "separator",
+        "server",
+        "date",
+        "time",
+        "location",
+        "cold",
+        "profile",
+        "level",
+        "mayor",
+        "purse",
+        "bank",
+        "interest",
+        "bits",
+        "motes",
+        "copper",
+        "heat",
+        "north_stars",
+        "powder",
+        "slayer",
+        "objective",
+        "other",
+        "footer"
+      ],
+      "off" : [
+        "server",
+        "profile",
+        "level",
+        "interest"
+      ],
+      "rows" : [
+        "date",
+        "time",
+        "space#1",
+        "location",
+        "separator#2",
+        "cold",
+        "mayor",
+        "space#3",
+        "purse",
+        "bank",
+        "bits",
+        "motes",
+        "copper",
+        "heat",
+        "north_stars",
+        "powder",
+        "space#4",
+        "slayer",
+        "objective",
+        "other",
+        "server",
+        "profile",
+        "level",
+        "interest",
+        "separator#5",
+        "footer"
+      ]
+    }
+  },
+  "deployables" : {
+    "glow_soft" : false,
+    "look_mode" : "CUSTOM"
+  },
+  "dragon_profit" : {
+    "glow" : false
+  },
+  "enchant_colors" : {
+    "perfect_count" : "THREE",
+    "perfect_first" : {
+      "color" : "#1A00FF",
+      "menu" : false
+    },
+    "perfect_look" : "CUSTOM",
+    "perfect_second" : {
+      "color" : "#8700FF",
+      "menu" : false
+    },
+    "perfect_speed" : 1.5,
+    "perfect_third" : {
+      "color" : "#0D0035",
+      "menu" : false
+    }
+  },
+  "equipment_hud" : {
+    "enabled" : true,
+    "glow_soft" : false,
+    "look_mode" : "CUSTOM",
+    "over_game" : false
+  },
+  "etherwarp" : {
+    "enabled" : true
+  },
+  "experiment_profit" : {
+    "glow" : false
+  },
+  "experiments" : {
+    "guardian" : true,
+    "info" : true,
+    "next_clicks" : true
+  },
+  "explosions_hider" : {
+    "enabled" : true
+  },
+  "farming_hud" : {
+    "enabled" : true,
+    "glow" : false,
+    "glow_soft" : false,
+    "look_mode" : "CUSTOM"
+  },
+  "farming_profit" : {
+    "glow" : false
+  },
+  "fishing_profit" : {
+    "glow" : false
+  },
+  "grappling_hook" : {
+    "background" : false,
+    "glow" : false,
+    "glow_soft" : false,
+    "look_mode" : "CUSTOM",
+    "panel_theme" : "GLASS"
+  },
+  "hotm_tree_hud" : {
+    "enabled" : false,
+    "glow" : false
+  },
+  "item_list" : {
+    "item_size" : 1.25,
+    "sort" : "PRICE"
+  },
+  "item_tooltip_lines" : {
+    "lines" : {
+      "known" : [
+        "dungeon",
+        "lowest_bin",
+        "median",
+        "sold",
+        "craft",
+        "bazaar",
+        "trend",
+        "npc"
+      ],
+      "off" : [
+        "trend",
+        "npc"
+      ],
+      "rows" : [
+        "dungeon",
+        "lowest_bin",
+        "median",
+        "sold",
+        "craft",
+        "bazaar",
+        "trend",
+        "npc"
+      ]
+    }
+  },
+  "keep_terrain" : {
+    "enabled" : true
+  },
+  "last_dragons" : {
+    "glow" : false
+  },
+  "mineshaft_pity" : {
+    "glow" : false,
+    "glow_soft" : false,
+    "look_mode" : "CUSTOM",
+    "show_needed" : false
+  },
+  "minibosses" : {
+    "boss_alert" : true,
+    "boss_highlight" : true,
+    "color" : {
+      "color" : "#9A00FF",
+      "menu" : false
+    },
+    "enabled" : true
+  },
+  "mining_ability" : {
+    "card_width_factor" : 0.75,
+    "glow" : false,
+    "glow_soft" : false,
+    "look" : "SIMPLE",
+    "look_mode" : "CUSTOM",
+    "show_icon" : false,
+    "show_name" : false
+  },
+  "mining_profit" : {
+    "glow" : false,
+    "price_mode" : "SELL_OFFER"
+  },
+  "mouse_lock" : {
+    "glow" : false
+  },
+  "pest_hud" : {
+    "glow" : false,
+    "look" : "SIMPLE"
+  },
+  "pet_hud" : {
+    "glow_soft" : false,
+    "look_mode" : "CUSTOM"
+  },
+  "sea_creatures" : {
+    "glow" : false,
+    "range" : "LIFETIME"
+  },
+  "slayer_helpers" : {
+    "enabled" : true
+  },
+  "slayer_phase" : {
+    "enabled" : true,
+    "glow_soft" : false,
+    "look_mode" : "CUSTOM"
+  },
+  "slayer_profit" : {
+    "glow_soft" : false,
+    "look_mode" : "CUSTOM"
+  },
+  "storage_overlay" : {
+    "enabled" : true,
+    "height" : 90
+  },
+  "tarantula_helper" : {
+    "enabled" : true
+  },
+  "visitor_hud" : {
+    "enabled" : true,
+    "glow" : false,
+    "glow_soft" : false,
+    "look_mode" : "CUSTOM"
+  },
+  "voidgloom_helper" : {
+    "enabled" : true
+  }
+}

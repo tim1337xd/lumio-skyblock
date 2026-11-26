@@ -36,19 +36,4 @@ class FishingRodsTest {
 		assertFalse(FishingRods.isRod("SOME_ITEM", List.of()));
 		assertFalse(FishingRods.isRod(null, List.of("LEGENDARY FISHING ROD")), "not a SkyBlock item");
 	}
-
-	@Test
-	void theIslandsInTheList() {
-		for (String island : List.of("Hub", "Jerry's Workshop", "Crimson Isle", "Spider's Den", "Backwater Bayou", "Lotus Atoll")) {
-			assertTrue(FishingRods.fishingIsland(island), island);
-		}
-	}
-
-	@Test
-	void theIslandsOutsideTheList() {
-		for (String island : List.of("Dwarven Mines", "Private Island", "The Garden", "", "Somewhere new")) {
-			assertFalse(FishingRods.fishingIsland(island), island);
-		}
-		assertFalse(FishingRods.fishingIsland(null));
-	}
 }

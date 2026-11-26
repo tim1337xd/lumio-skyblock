@@ -71,4 +71,54 @@ class SkyBlockOutlinesTest {
 		});
 		assertEquals(List.of(), wrong);
 	}
+
+	/**
+	 * A sub-page card stands on exactly one tab: on a page with tabs (two or more named groups, the keys and the cards' own tabs counted), every
+	 * sub-page row is in the overview of one named group, never in the untitled one, which shows under every tab.
+	 */
+	@Test
+	void aSubPageCardIsOnExactlyOneTab() {
+		Map<String, PageOutline> outlines = PageOutlines.of("lumio-skyblock");
+		List<String> wrong = new ArrayList<>();
+		for (AddonFeature addon : SkyBlockFeatures.ALL) {
+			Feature feature = Adapters.featureOf(addon);
+			PageOutline outline = outlines.get(feature.id());
+			if (outline == null || outline.pages().isEmpty()) {
+				continue;
+			}
+			feature.useOutline(outline);
+			java.util.Set<String> tabs = new java.util.HashSet<>();
+			for (PageOutline.Row row : outline.main()) {
+				tabs.add(row.group());
+			}
+			// a key the outline does not place gets a Keys group of its own in the game, where the keys are registered
+			if (addon.getClass().getName().contains("Fishing") || outline.main().stream().anyMatch(row -> row.key().startsWith("key."))) {
+				tabs.add(Feature.KEYS_GROUP);
+			}
+			Map<String, Integer> seen = new HashMap<>();
+			for (Setting<?> setting : feature.shownSettings()) {
+				if (setting instanceof dev.tim1337.lumio.config.setting.NavListSetting overview) {
+					String tab = feature.sectionOf(overview);
+					tabs.add(tab == null ? "" : tab);
+					for (var item : overview.items()) {
+						seen.merge(item.title(), 1, Integer::sum);
+						if ((tab == null || tab.isEmpty()) && outline.pages().keySet().stream().anyMatch(page -> page.title().equals(item.title()))) {
+							wrong.add(feature.id() + ": card " + item.title() + " in the untitled group");
+						}
+					}
+				}
+			}
+			tabs.remove("");
+			tabs.remove("Reset");
+			if (tabs.size() < 2) {
+				wrong.removeIf(line -> line.startsWith(feature.id() + ":"));
+			}
+			for (PageOutline.SubPage page : outline.pages().keySet()) {
+				if (seen.getOrDefault(page.title(), 0) != 1) {
+					wrong.add(feature.id() + ": card " + page.title() + " shown " + seen.getOrDefault(page.title(), 0) + " times");
+				}
+			}
+		}
+		assertEquals(List.of(), wrong);
+	}
 }

@@ -8,7 +8,6 @@ import com.google.gson.JsonParser;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -23,9 +22,6 @@ public final class ExactItem {
 	private static final String ID = "id";
 	private static final String PET_INFO = "petInfo";
 	private static final String ENCHANTMENTS = "enchantments";
-	private static final String ENCHANTED_BOOK = "ENCHANTED_BOOK";
-	private static final String ENCHANTMENT_PREFIX = "ENCHANTMENT_";
-	private static final String PET_PREFIX = "PET_";
 	/** Never sent: these say which single item it is and when it was made, which says nothing of its value. */
 	private static final Set<String> NOT_SENT = Set.of("uuid", "timestamp", "originTag", "uniqueId");
 	/** Nor anything that could name a person: an item can be signed, or kept for its owner. */
@@ -54,30 +50,6 @@ public final class ExactItem {
 			}
 		}
 		return false;
-	}
-
-	/** @return the id to price an item by: a pet by its kind, an enchanted book with one enchant as that enchant, which is its own item at the bazaar; otherwise its id */
-	public static String pricedId(String id, JsonObject data) {
-		if (ENCHANTED_BOOK.equals(id) && data.has(ENCHANTMENTS) && data.get(ENCHANTMENTS).isJsonObject()) {
-			JsonObject enchantments = data.getAsJsonObject(ENCHANTMENTS);
-			if (enchantments.size() == 1) {
-				Map.Entry<String, JsonElement> only = enchantments.entrySet().iterator().next();
-				return ENCHANTMENT_PREFIX + only.getKey().toUpperCase(Locale.ROOT) + "_" + number(only.getValue());
-			}
-		}
-		JsonObject pet = petInfo(data);
-		if (pet != null && pet.has("type") && pet.get("type").isJsonPrimitive()) {
-			return PET_PREFIX + pet.get("type").getAsString().toUpperCase(Locale.ROOT);
-		}
-		return id;
-	}
-
-	private static long number(JsonElement value) {
-		try {
-			return value.getAsLong();
-		} catch (RuntimeException e) {
-			return 0L;
-		}
 	}
 
 	private static JsonObject petInfo(JsonObject data) {

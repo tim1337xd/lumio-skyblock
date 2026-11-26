@@ -90,6 +90,6 @@ public final class DropPriceIds {
 		if (Character.isDigit(text.charAt(0))) {
 			return Integer.parseInt(text);
 		}
-		return DropMessage.roman(text);
+		return Roman.strict(text, 0);
 	}
 }

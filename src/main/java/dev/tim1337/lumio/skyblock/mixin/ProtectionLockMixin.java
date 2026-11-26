@@ -15,8 +15,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(GuiGraphicsExtractor.class)
 public abstract class ProtectionLockMixin {
 	@Inject(method = "itemDecorations(Lnet/minecraft/client/gui/Font;Lnet/minecraft/world/item/ItemStack;IILjava/lang/String;)V", at = @At("TAIL"))
-	private void lumio$lock(Font font, ItemStack stack, int x, int y, String text, CallbackInfo ci) {
-		if (SkyBlockFeatures.ITEM_PROTECTION.isProtected(stack)) {
+	private void evskyblock$lock(Font font, ItemStack stack, int x, int y, String text, CallbackInfo ci) {
+		if (SkyBlockFeatures.ITEM_PROTECTION.isFavorite(stack)) {
 			SkyBlockFeatures.ITEM_PROTECTION.drawLock((GuiGraphicsExtractor) (Object) this, stack, x, y);
 		}
 	}

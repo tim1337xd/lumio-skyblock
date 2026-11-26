@@ -30,7 +30,7 @@ public class LastDragonsHudFeature extends AddonPanel {
 	private final DragonProfit dragons;
 
 	public LastDragonsHudFeature(DragonProfit dragons) {
-		super("last_dragons", "Last dragons", "Your last three dragons: kind, eyes, place, weight and what dropped.", true, Anchor.LEFT, false, 216f, 220f);
+		super("last_dragons", "Last dragons", "Your last three dragons and their drops.", true, Anchor.LEFT, false, 216f, 220f);
 		this.dragons = dragons;
 		iconRgb(SystemColors.ORANGE_RGB);
 		iconName("swoosh");

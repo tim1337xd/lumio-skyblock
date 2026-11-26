@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Counting down per shot, the server's value going first, refills, and the alarm once per drop and at none. */
+/** The server's value, refills, and the alarm once per drop and at none. */
 class ArrowCountTest {
 	private static final int WARN = 100;
 	private static final String FLINT = "Flint Arrow";
@@ -17,37 +17,18 @@ class ArrowCountTest {
 		return count;
 	}
 
+	/** The server telling one arrow fewer. */
+	private static ArrowCount.Alarm down(ArrowCount count) {
+		return count.real(FLINT, Math.max(0, count.count() - 1), WARN);
+	}
+
 	@Test
 	void nothingIsKnownAtFirst() {
 		ArrowCount count = new ArrowCount();
 		assertFalse(count.known());
-		assertEquals(ArrowCount.Alarm.NONE, count.shot(WARN));
+		assertEquals(ArrowCount.Alarm.NONE, count.forged(FLINT, 64, WARN));
+		assertFalse(count.known());
 		assertEquals(0, count.count());
-	}
-
-	@Test
-	void countsDownPerShot() {
-		ArrowCount count = with(2880);
-		count.shot(WARN);
-		count.shot(WARN);
-		assertEquals(2878, count.count());
-	}
-
-	@Test
-	void neverBelowNone() {
-		ArrowCount count = with(1);
-		count.shot(WARN);
-		count.shot(WARN);
-		assertEquals(0, count.count());
-	}
-
-	@Test
-	void theRealValueGoesFirst() {
-		ArrowCount count = with(2880);
-		count.shot(WARN);
-		count.shot(WARN);
-		count.real(FLINT, 2879, WARN);
-		assertEquals(2879, count.count());
 	}
 
 	@Test
@@ -57,7 +38,7 @@ class ArrowCountTest {
 		assertEquals(2880, count.most());
 		count.real(FLINT, 1800, WARN);
 		assertEquals(1800, count.most(), "a refill starts again");
-		count.shot(WARN);
+		down(count);
 		assertEquals(1800, count.most());
 	}
 
@@ -80,11 +61,11 @@ class ArrowCountTest {
 	@Test
 	void theAlarmOncePerDrop() {
 		ArrowCount count = with(101);
-		assertEquals(ArrowCount.Alarm.NONE, count.shot(WARN));
+		assertEquals(ArrowCount.Alarm.NONE, down(count));
 		assertEquals(100, count.count());
-		assertEquals(ArrowCount.Alarm.LOW, count.shot(WARN));
+		assertEquals(ArrowCount.Alarm.LOW, down(count));
 		for (int i = 0; i < 50; i++) {
-			assertEquals(ArrowCount.Alarm.NONE, count.shot(WARN));
+			assertEquals(ArrowCount.Alarm.NONE, down(count));
 		}
 	}
 
@@ -98,11 +79,11 @@ class ArrowCountTest {
 	@Test
 	void oneMoreAtNone() {
 		ArrowCount count = with(101);
-		count.shot(WARN);
-		assertEquals(ArrowCount.Alarm.LOW, count.shot(WARN));
+		down(count);
+		assertEquals(ArrowCount.Alarm.LOW, down(count));
 		count.real(FLINT, 1, WARN);
-		assertEquals(ArrowCount.Alarm.OUT, count.shot(WARN));
-		assertEquals(ArrowCount.Alarm.NONE, count.shot(WARN));
+		assertEquals(ArrowCount.Alarm.OUT, down(count));
+		assertEquals(ArrowCount.Alarm.NONE, down(count));
 		assertEquals(ArrowCount.Alarm.NONE, count.real(FLINT, 0, WARN));
 	}
 
@@ -110,7 +91,7 @@ class ArrowCountTest {
 	void straightToNoneIsOneAlarm() {
 		ArrowCount count = with(500);
 		assertEquals(ArrowCount.Alarm.OUT, count.real(FLINT, 0, WARN));
-		assertEquals(ArrowCount.Alarm.NONE, count.shot(WARN));
+		assertEquals(ArrowCount.Alarm.NONE, down(count));
 	}
 
 	@Test
@@ -126,25 +107,25 @@ class ArrowCountTest {
 	}
 
 	@Test
-	void aCountThatWentTooFarDoesNotRepeatTheAlarm() {
+	void aSmallRiseDoesNotRepeatTheAlarm() {
 		ArrowCount count = with(100);
-		assertEquals(ArrowCount.Alarm.LOW, count.shot(WARN));
+		assertEquals(ArrowCount.Alarm.LOW, down(count));
 		assertEquals(ArrowCount.Alarm.NONE, count.real(FLINT, 103, WARN));
-		assertEquals(ArrowCount.Alarm.NONE, count.shot(WARN));
+		assertEquals(ArrowCount.Alarm.NONE, down(count));
 		assertEquals(ArrowCount.Alarm.NONE, count.real(FLINT, 99, WARN));
 	}
 
 	@Test
 	void lowFromTheStartIsNoDrop() {
 		ArrowCount count = with(50);
-		assertEquals(ArrowCount.Alarm.NONE, count.shot(WARN));
+		assertEquals(ArrowCount.Alarm.NONE, down(count));
 		assertEquals(49, count.count());
 	}
 
 	@Test
 	void changingTheLevelIsNoDrop() {
 		ArrowCount count = with(150);
-		assertEquals(ArrowCount.Alarm.NONE, count.shot(200));
+		assertEquals(ArrowCount.Alarm.NONE, count.real(FLINT, 149, 200));
 	}
 
 	@Test

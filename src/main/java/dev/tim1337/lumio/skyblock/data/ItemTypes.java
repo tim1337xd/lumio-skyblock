@@ -1,9 +1,10 @@
 package dev.tim1337.lumio.skyblock.data;
 
+import dev.tim1337.lumio.api.experimental.util.TextColors;
+
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 /**
  * The rarity and type of a SkyBlock item, read from the last line of its lore ("§6§lLEGENDARY DUNGEON SWORD"), and the group it belongs to for the
@@ -41,7 +42,6 @@ public final class ItemTypes {
 		}
 	}
 
-	private static final Pattern CODES = Pattern.compile("§.");
 	/** The rarities, lowest first; two words before one, so "VERY SPECIAL" is not read as "SPECIAL". */
 	private static final String[] RARITIES = {"COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC", "DIVINE", "SPECIAL", "VERY SPECIAL", "ULTIMATE",
 		"ADMIN"};
@@ -67,7 +67,7 @@ public final class ItemTypes {
 
 	private static String lastLine(ItemRepo.Entry entry) {
 		for (int i = entry.lore.size() - 1; i >= 0; i--) {
-			String line = CODES.matcher(entry.lore.get(i)).replaceAll("").strip();
+			String line = TextColors.noColors(entry.lore.get(i)).strip();
 			if (!line.isEmpty()) {
 				return line;
 			}

@@ -2,7 +2,6 @@ package dev.tim1337.lumio.skyblock;
 
 import dev.tim1337.lumio.api.ScoreboardProvider;
 import dev.tim1337.lumio.api.setting.AddonSetting;
-import dev.tim1337.lumio.skyblock.hud.CustomScoreboardFeature;
 
 import net.minecraft.network.chat.Component;
 

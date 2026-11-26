@@ -11,6 +11,7 @@ public final class CelebrationsFeature extends AddonFeature {
 
 	public CelebrationsFeature() {
 		super("celebrations", "Celebrations", TEXT, true);
+		pageGroup("Visual");
 		iconRgb(SystemColors.YELLOW_RGB);
 		iconName("sparkle");
 		summary(TEXT);

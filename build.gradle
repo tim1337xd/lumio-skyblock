@@ -50,7 +50,7 @@ dependencies {
 	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }
 
-// Local client game tests (src/gametest, not part of the repository): configured in gametest.gradle when it exists.
+// Client game tests (src/gametest, not in the public source): configured in gametest.gradle when it exists.
 if (file("gametest.gradle").exists()) {
 	apply from: "gametest.gradle"
 }
@@ -59,9 +59,12 @@ processResources {
 	def version = project.version
 	inputs.property "version", version
 	inputs.property "buildNumber", buildNumber
+	// only a jar built for a public release (-Prelease=true) may check for updates; every other jar, also those deployed to the game, never does
+	def releaseBuild = project.findProperty("release") == "true"
+	inputs.property "release", releaseBuild
 
 	filesMatching("fabric.mod.json") {
-		expand "version": version, "build": buildNumber
+		expand "version": version, "release": releaseBuild, "build": buildNumber
 	}
 }
 
@@ -70,12 +73,12 @@ test {
 	systemProperty "lumio.updateSettingKeys", project.hasProperty("updateSettingKeys")
 }
 
-// Every jar is called lumio-skyblock-<version>+mc<Minecraft version>.jar: lumio-skyblock-1.0.0-beta.1+mc26.3.jar; an alpha build lumio-skyblock-<version>-mc<Minecraft version>.jar.
+// Every jar is called lumio-skyblock-<version>-<Minecraft version>.jar: lumio-skyblock-1.0.0-beta.2-26.3.jar, as the release assets are; an alpha build lumio-skyblock-<version>-mc<Minecraft version>.jar.
 base {
 	archivesName = 'lumio-skyblock'
 }
 tasks.withType(AbstractArchiveTask).configureEach {
-	archiveVersion = modStage == 'alpha' ? "${version}-mc${project.minecraft_version}" : "${version}+mc${project.minecraft_version}"
+	archiveVersion = modStage == 'alpha' ? "${version}-mc${project.minecraft_version}" : "${version}-${project.minecraft_version}"
 }
 
 // ./gradlew deployJar copies the add-on jar into the game's mods folder (deploy_dir in the git-ignored local.properties), replacing the older
@@ -97,6 +100,24 @@ tasks.register('deployJar') {
 	inputs.file(jarFile)
 	outputs.upToDateWhen { false }
 	doLast {
+		def jar = jarFile.get().asFile
+		// the next jar gets the next number; the rest of gradle.properties (comments, layout) stays as it is
+		def raise = {
+			def text = propertiesFile.getText('ISO-8859-1')
+			def matcher = text =~ /(?m)^build_number=(\d+)/
+			if (!matcher.find()) {
+				throw new GradleException('build_number is missing in gradle.properties')
+			}
+			def next = (matcher.group(1) as int) + 1
+			propertiesFile.write(text.replaceFirst(/(?m)^build_number=\d+/, "build_number=${next}"), 'ISO-8859-1')
+			return next
+		}
+		if ((deployDir == null || deployDir.isBlank()) && raisesBuild) {
+			// a machine with an instance of the other version only (the Mac has 26.3 alone): the base version's jar is built, not copied, and the
+			// number still goes up, as it counts the builds
+			println "Built ${jar.name}; no mods folder is set for this Minecraft version (deploy_dir), so it is not copied; the next build is ${raise()}"
+			return
+		}
 		if (deployDir == null || deployDir.isBlank()) {
 			throw new GradleException('Set the folder of the game\'s mods in local.properties (deploy_dir, or deploy_dir_<version> for another Minecraft version)')
 		}
@@ -104,14 +125,23 @@ tasks.register('deployJar') {
 		if (!mods.isDirectory()) {
 			throw new GradleException("The mods folder ${mods} does not exist")
 		}
-		// a jar replaced under the running game breaks it when it loads a class later
+		// a jar replaced under the running game breaks it when it loads a class later. Windows: the game's javaw; Linux and macOS: a java
+		// that Prism (also as Flatpak) started. Java reads only the first 4 KiB of a command line, and the long class path pushes Prism's entry
+		// point past it, so the launcher's folder in the natives path near the start tells it too
 		def running = ProcessHandle.allProcesses().anyMatch { process ->
-			process.info().command().map { it.toLowerCase(Locale.ROOT).endsWith('javaw.exe') }.orElse(false)
+			def info = process.info()
+			def command = info.command().orElse('').toLowerCase(Locale.ROOT)
+			if (command.endsWith('javaw.exe')) {
+				return true
+			}
+			if (!command.endsWith('/java')) {
+				return false
+			}
+			return info.commandLine().orElse('').toLowerCase(Locale.ROOT).contains('prismlauncher')
 		}
 		if (running) {
-			throw new GradleException('Minecraft (javaw) is running: close it first, then deploy')
+			throw new GradleException('Minecraft is running: close it first, then deploy')
 		}
-		def jar = jarFile.get().asFile
 		// two jars of the same mod do not load: only the older jars of this add-on go, never Lumio's
 		mods.listFiles().findAll { it.name ==~ /lumio-skyblock-\d.*\.jar/ }.each { it.delete() }
 		java.nio.file.Files.copy(jar.toPath(), new File(mods, jar.name).toPath())
@@ -120,15 +150,7 @@ tasks.register('deployJar') {
 			println "Deployed ${jar.name} to ${mods}"
 			return
 		}
-		// the next jar gets the next number; the rest of gradle.properties (comments, layout) stays as it is
-		def text = propertiesFile.getText('ISO-8859-1')
-		def matcher = text =~ /(?m)^build_number=(\d+)/
-		if (!matcher.find()) {
-			throw new GradleException('build_number is missing in gradle.properties')
-		}
-		def next = (matcher.group(1) as int) + 1
-		propertiesFile.write(text.replaceFirst(/(?m)^build_number=\d+/, "build_number=${next}"), 'ISO-8859-1')
-		println "Deployed ${jar.name} to ${mods}; the next build is ${next}"
+		println "Deployed ${jar.name} to ${mods}; the next build is ${raise()}"
 	}
 }
 

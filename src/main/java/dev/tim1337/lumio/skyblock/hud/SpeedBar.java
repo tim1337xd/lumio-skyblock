@@ -1,7 +1,8 @@
 package dev.tim1337.lumio.skyblock.hud;
 
+import dev.tim1337.lumio.api.experimental.debug.DebugHooks;
 import dev.tim1337.lumio.api.experimental.ui.SpeedStatusBar;
-import dev.tim1337.lumio.api.experimental.util.Debug;
+import dev.tim1337.lumio.skyblock.SkyBlockDebug;
 import dev.tim1337.lumio.skyblock.data.SkyBlock;
 import dev.tim1337.lumio.skyblock.data.SkyBlockArea;
 import dev.tim1337.lumio.skyblock.data.SpeedStat;
@@ -46,7 +47,9 @@ public final class SpeedBar {
 	private static void compareWithTab() {
 		int tab = SpeedStat.fromTab(SkyBlockArea.tab());
 		if (tab >= 0 && tab != speed && tab != lastTabSpeed) {
-			Debug.log("Speed: the attribute says {}, the player list {}", speed, tab);
+			if (DebugHooks.ACTIVE) {
+				DebugHooks.log(SkyBlockDebug.SKYBLOCK, "Speed: the attribute says {}, the player list {}", speed, tab);
+			}
 		}
 		lastTabSpeed = tab;
 	}

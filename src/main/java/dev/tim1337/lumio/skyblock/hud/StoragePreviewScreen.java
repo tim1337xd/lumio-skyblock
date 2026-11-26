@@ -222,7 +222,7 @@ public final class StoragePreviewScreen extends Screen {
 		float tagX = left + ui.boldWidthScaled("Storage", TextScale.HEADING) + 6f;
 		String tag = StoragePreviewModel.tag(newestSeen, System.currentTimeMillis());
 		float tagWidth = ui.widthScaled(tag, TextScale.SMALL) + 2f * TAG_PAD;
-		ui.roundedSmooth(tagX, top - 1f, tagWidth, TAG_HEIGHT, TAG_HEIGHT / 2f, Draw.withOpacity(HudTheme.text(), 0.14f));
+		ui.roundedSmooth(tagX, top - 1f, tagWidth, TAG_HEIGHT, Radius.box(TAG_HEIGHT), Draw.withOpacity(HudTheme.text(), 0.14f));
 		ui.textAtScaled(tag, tagX + TAG_PAD, top + 1f, TextScale.SMALL, HudTheme.text());
 		int ender = 0;
 		int backpacks = 0;

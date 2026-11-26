@@ -9,11 +9,12 @@ import dev.tim1337.lumio.skyblock.profit.ProfitHudFeature;
  */
 public class CorpsesFeature extends AddonFeature {
 	public CorpsesFeature(CorpseHighlightFeature highlight, ProfitHudFeature profit) {
-		super("corpses", "Corpses", "The corpses of the Glacite Mineshafts: lit through the walls once seen, shared with your party, and what looting them brings in.",
+		super("corpses", "Corpses", "Mineshaft corpses: highlight, sharing, loot.",
 			true, false);
+		pageGroup("Mineshafts and Hollows");
 		iconRgb(0x3AF2FF);
 		iconName("skull");
-		summary("Glacite Mineshaft corpses and what their loot is worth");
+		summary("Mineshaft corpses and their loot");
 		addChild(highlight);
 		addChild(profit);
 	}

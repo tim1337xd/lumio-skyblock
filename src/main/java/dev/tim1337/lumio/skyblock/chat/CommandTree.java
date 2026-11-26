@@ -125,6 +125,7 @@ public final class CommandTree {
 			case "warps" -> CommandCompletion.Source.WARPS;
 			case "recipes" -> CommandCompletion.Source.RECIPES;
 			case "sacks" -> CommandCompletion.Source.SACKS;
+			case "contacts" -> CommandCompletion.Source.CONTACTS;
 			default -> null;
 		};
 	}

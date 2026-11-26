@@ -1,6 +1,13 @@
 package dev.tim1337.lumio.skyblock.data;
 
+import dev.tim1337.lumio.api.experimental.util.TextColors;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
+
 import java.util.Locale;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -19,8 +26,19 @@ import java.util.regex.Pattern;
 public record DropMessage(String name, int amount, int magicFind, String bookId, boolean pet) {
 	private static final Pattern DROP = Pattern.compile(
 		"^(?:(PET) DROP|[A-Z][A-Z ]{0,30} DROP)!\\s*(.{1,120})$");
-	/** The magic find at the end: "(+437% ✯ Magic Find)", whatever the symbol. */
-	private static final Pattern MAGIC_FIND = Pattern.compile("\\s*\\(\\+(\\d{1,5})%\\s*\\S{0,2}\\s*Magic Find!?\\)\\s*$");
+	/** The magic find at the end: "(+437% ✯ Magic Find)", whatever the symbol, also without the percent sign: "(+191✯ Magic Find)", "(+507 ✯ Magic Find)". */
+	private static final Pattern MAGIC_FIND = Pattern.compile("\\s*\\(\\+(\\d{1,5})%?\\s*\\S{0,2}\\s*Magic Find!?\\)\\s*$");
+	/** The farming fortune at the end of a Garden drop: "(+144.4)". */
+	private static final Pattern FORTUNE = Pattern.compile("\\s*\\(\\+[\\d.,]{1,12}\\)\\s*$");
+	/** The pest a Garden drop came from, after its name: "Not Just a Pest Vinyl (Cocoaleech)". */
+	private static final Pattern FROM_PEST = Pattern.compile("^(.+?\\S)\\s+\\([A-Z][a-z]{2,20}\\)$");
+	/** A drop told as a sentence: "You dropped 24x Enchanted Moonflower!", "You dug out a Griffin Feather!". */
+	private static final Pattern SENTENCE = Pattern.compile("^You (?:dropped|dug out|found)\\s+(?:an?\\s+)?(.+?)!?$");
+	/** A pet's rarity in front of its name: "EPIC Slug". */
+	private static final Pattern RARITY_IN_FRONT = Pattern.compile("^(?:COMMON|UNCOMMON|RARE|EPIC|LEGENDARY|MYTHIC)\\s+");
+	/** "LOOT SHARE! You received 3 Thunder Shards for assisting …!", or "… received loot for …", which names nothing. */
+	private static final Pattern LOOT_SHARE = Pattern.compile("^LOOT SHARE!?\\s+You received (?:(\\d{1,5})\\s+)?(.{1,60}?) for assisting .{1,40}!$");
+	private static final String ANY_LOOT = "loot";
 	/** A sign in front of a name, such as a rune's "◆ ". */
 	private static final Pattern SIGN_IN_FRONT = Pattern.compile("^[^\\p{L}\\p{N}\\[(]{1,3}\\s*");
 	/** An amount in front ("2x Enchanted Bone") or behind ("Enchanted Bone x2"). */
@@ -35,7 +53,7 @@ public record DropMessage(String name, int amount, int magicFind, String bookId,
 
 	/** @return the drop a server message announces, or null when it is no rare drop */
 	public static DropMessage parse(String message) {
-		String text = noColors(message).strip();
+		String text = TextColors.noColors(message).strip();
 		Matcher drop = DROP.matcher(text);
 		if (!drop.matches()) {
 			return null;
@@ -48,12 +66,24 @@ public record DropMessage(String name, int amount, int magicFind, String bookId,
 			magicFind = Integer.parseInt(found.group(1));
 			rest = rest.substring(0, found.start()).strip();
 		}
+		rest = FORTUNE.matcher(rest).replaceFirst("").strip();
+		Matcher sentence = SENTENCE.matcher(rest);
+		if (sentence.matches()) {
+			rest = sentence.group(1).strip();
+		}
+		if (pet) {
+			rest = RARITY_IN_FRONT.matcher(rest).replaceFirst("");
+		}
 		// the server puts most drops in parentheses, also with an amount or a rune's sign: "(63x Twilight Arrow Poison)", "(Null Atom)", "(◆ End Rune I)"; a book is told by its level below
 		boolean isBook = BOOK.matcher(rest).matches();
 		if (!isBook && rest.length() > 2 && rest.charAt(0) == '(' && rest.endsWith(")")) {
 			rest = rest.substring(1, rest.length() - 1).strip();
 		}
 		rest = SIGN_IN_FRONT.matcher(rest).replaceFirst("");
+		Matcher fromPest = isBook ? null : FROM_PEST.matcher(rest);
+		if (fromPest != null && fromPest.matches()) {
+			rest = fromPest.group(1);
+		}
 		int amount = 1;
 		Matcher before = AMOUNT_BEFORE.matcher(rest);
 		Matcher after = AMOUNT_AFTER.matcher(rest);
@@ -67,7 +97,7 @@ public record DropMessage(String name, int amount, int magicFind, String bookId,
 		String bookId = null;
 		Matcher book = BOOK.matcher(rest);
 		if (book.matches()) {
-			int level = roman(book.group(2));
+			int level = Roman.strict(book.group(2), 0);
 			if (level > 0) {
 				String enchantment = book.group(1).strip();
 				rest = enchantment + " " + book.group(2);
@@ -86,44 +116,76 @@ public record DropMessage(String name, int amount, int magicFind, String bookId,
 		return new DropMessage(rest, Math.max(1, amount), magicFind, bookId, pet);
 	}
 
+	/**
+	 * A loot share as the server announces it: "LOOT SHARE! You received 3 Thunder Shards for assisting …!" names the item, "LOOT SHARE You received loot
+	 * for assisting …!" does not (its items then simply arrive).
+	 *
+	 * @param name   the item's name as written, maybe in the plural ("Thunder Shards"); null when the message names none
+	 * @param amount how many
+	 */
+	public record LootShare(String name, int amount) {
+		/** @return whether the message names the item */
+		public boolean named() {
+			return name != null;
+		}
+	}
+
+	/** @return the loot share a server message announces, or null when it is none */
+	public static LootShare lootShare(String message) {
+		Matcher share = LOOT_SHARE.matcher(TextColors.noColors(message).strip());
+		if (!share.matches()) {
+			return null;
+		}
+		String name = share.group(2).strip();
+		if (name.equalsIgnoreCase(ANY_LOOT)) {
+			return new LootShare(null, 1);
+		}
+		int amount = share.group(1) == null ? 1 : Math.min(MOST_AMOUNT, Integer.parseInt(share.group(1)));
+		return new LootShare(name, Math.max(1, amount));
+	}
+
+	/**
+	 * Shards the player got, as the server says it: they go into the Hunting Box, never into the inventory, so this line is all there is of them.
+	 *
+	 * @param name   the shard's name without "Shard": "Flaming Spider", "Murkbat"
+	 * @param amount how many
+	 */
+	public record ShardGain(String name, int amount) {
+	}
+
+	/** "CHARM! You charmed the Flaming Spider and received 1 Flaming Spider Shard!" (the shard may be named apart from the mob: an Empyrean Sphinx gives a Sphinx Shard). */
+	private static final Pattern CHARMED = Pattern.compile("^CHARM! You charmed the .{1,60}? and received (\\d{1,5}) (.{1,40}?) Shards?!$");
+	/** "You caught x2 Murkbat Shards!" */
+	private static final Pattern CAUGHT_SHARDS = Pattern.compile("^You caught x(\\d{1,5}) (.{1,40}?) Shards?!$");
+	/** A loot share of shards: "Thunder Shards". */
+	private static final Pattern SHARD_NAME = Pattern.compile("^(.{1,40}?) Shards?$");
+
+	/** @return the shards a server message says the player got (charmed, caught, or a loot share of shards), or null when it says none */
+	public static ShardGain shards(String message) {
+		String text = TextColors.noColors(message).strip();
+		Matcher gained = CHARMED.matcher(text);
+		if (!gained.matches()) {
+			gained = CAUGHT_SHARDS.matcher(text);
+		}
+		if (gained.matches()) {
+			return new ShardGain(gained.group(2).strip(), Math.max(1, Math.min(MOST_AMOUNT, Integer.parseInt(gained.group(1)))));
+		}
+		LootShare share = lootShare(text);
+		Matcher name = share == null || !share.named() ? null : SHARD_NAME.matcher(share.name());
+		return name != null && name.matches() ? new ShardGain(name.group(1).strip(), share.amount()) : null;
+	}
+
+	/** @return the color of an item's name in a drop message: its rarity color, or {@code fallback} when it has none */
+	public static int nameColor(Component message, String item, int fallback) {
+		String start = item.length() > 3 ? item.substring(0, 3) : item;
+		Optional<TextColor> found = message.visit((Style style, String part) -> style.getColor() != null && part.contains(start)
+			? Optional.of(style.getColor()) : Optional.empty(), Style.EMPTY);
+		return found.map(color -> 0xFF000000 | color.getValue()).orElse(fallback);
+	}
+
 	/** @return whether the drop is an enchanted book */
 	public boolean book() {
 		return bookId != null;
 	}
 
-	/** @return a roman number's value (I to C), or 0 when it is none */
-	static int roman(String numeral) {
-		int total = 0;
-		int previous = 0;
-		for (int i = numeral.length() - 1; i >= 0; i--) {
-			int value = switch (numeral.charAt(i)) {
-				case 'I' -> 1;
-				case 'V' -> 5;
-				case 'X' -> 10;
-				case 'L' -> 50;
-				case 'C' -> 100;
-				default -> 0;
-			};
-			if (value == 0) {
-				return 0;
-			}
-			total += value < previous ? -value : value;
-			previous = Math.max(previous, value);
-		}
-		return total;
-	}
-
-	/** @return the text without color and format codes ("§d"), wherever they are */
-	private static String noColors(String text) {
-		StringBuilder out = new StringBuilder(text.length());
-		for (int i = 0; i < text.length(); i++) {
-			char c = text.charAt(i);
-			if (c == '§' && i + 1 < text.length()) {
-				i++;
-			} else {
-				out.append(c);
-			}
-		}
-		return out.toString();
-	}
 }

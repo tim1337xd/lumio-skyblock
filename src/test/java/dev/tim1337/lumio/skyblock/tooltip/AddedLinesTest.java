@@ -21,7 +21,7 @@ class AddedLinesTest {
 	}
 
 	private static AddedLines.Facts auction(int count, boolean shift, AddedLines.Exact exact, boolean soulbound, boolean loading) {
-		return new AddedLines.Facts(false, true, 50, TooltipLine.MISSING, 4_200_000d, "Moulberry", 120_000L, 4_550_000d, 7, 38d, 3_900_000d, -8d, 0d, 0d, 0d, count, shift, 12d, 1000L, -1L, exact, soulbound, loading);
+		return new AddedLines.Facts(false, true, 50, TooltipLine.MISSING, 4_200_000d, "Moulberry", 120_000L, 4_550_000d, 7, 38d, 3_900_000d, -8d, 0d, 0d, 0d, count, shift, 12d, 1000L, -1L, exact, soulbound, loading, false, "");
 	}
 
 	private static AddedLines.Facts bazaar() {
@@ -29,7 +29,7 @@ class AddedLinesTest {
 	}
 
 	private static AddedLines.Facts bazaar(int count, boolean shift) {
-		return new AddedLines.Facts(true, false, 0, TooltipLine.MISSING, Double.NaN, "", 0L, Double.NaN, 7, Double.NaN, Double.NaN, 6d, 258_400d, 251_900d, 1_000_000d, count, shift, Double.NaN, -1L, 1000L, AddedLines.Exact.NO, false, false);
+		return new AddedLines.Facts(true, false, 0, TooltipLine.MISSING, Double.NaN, "", 0L, Double.NaN, 7, Double.NaN, Double.NaN, 6d, 258_400d, 251_900d, 1_000_000d, count, shift, Double.NaN, -1L, 1000L, AddedLines.Exact.NO, false, false, false, "");
 	}
 
 	private static List<String> names(List<TooltipLine> lines) {
@@ -75,17 +75,18 @@ class AddedLinesTest {
 
 	@Test
 	void linesComeInThePlayersOrderUnderTheirHeading() {
-		List<TooltipLine> lines = AddedLines.build(List.of(AddedLines.SOLD, AddedLines.LOWEST_BIN), auction(), PriceText.Style.SHORT);
-		assertEquals(List.of("Sold", "Lowest BIN"), names(lines));
+		List<TooltipLine> lines = AddedLines.build(List.of(AddedLines.MEDIAN, AddedLines.LOWEST_BIN), auction(), PriceText.Style.SHORT);
+		assertEquals(List.of("Median", "Lowest BIN", AddedLines.PRICES_BY), names(lines));
 	}
 
 	@Test
-	void noLineSaysWhereThePricesComeFrom() {
+	void theOnlySourceLineIsSkyCoflsAttributionUnderItsNumbers() {
 		List<String> all = List.of(AddedLines.DUNGEON, AddedLines.LOWEST_BIN, AddedLines.MEDIAN, AddedLines.SOLD, AddedLines.CRAFT, AddedLines.BAZAAR, AddedLines.TREND, AddedLines.NPC);
-		for (AddedLines.Facts facts : List.of(auction(), bazaar())) {
-			for (TooltipLine line : AddedLines.build(all, facts, PriceText.Style.SHORT)) {
-				assertTrue(line.kind() != TooltipLine.Kind.FOOTNOTE, line.text());
-			}
+		List<TooltipLine> auction = AddedLines.build(all, auction(), PriceText.Style.SHORT);
+		assertEquals(1, auction.stream().filter(line -> line.kind() == TooltipLine.Kind.FOOTNOTE).count(), "one source line under auction numbers");
+		assertEquals(AddedLines.PRICES_BY, auction.getLast().text());
+		for (TooltipLine line : AddedLines.build(all, bazaar(), PriceText.Style.SHORT)) {
+			assertTrue(line.kind() != TooltipLine.Kind.FOOTNOTE, "a bazaar item names no source: " + line.text());
 		}
 	}
 
@@ -124,10 +125,11 @@ class AddedLinesTest {
 	@Test
 	void anAuctionItemGetsTheMarketAndABazaarItemTheBazaar() {
 		List<TooltipLine> auction = AddedLines.build(ALL, auction(), PriceText.Style.SHORT);
-		assertTrue(names(auction).containsAll(List.of("Quality", "Floor obtained", "Lowest BIN", "Median", "Sold", "Craft cost", "7-day trend", "NPC price")));
-		assertFalse(names(auction).contains("Buy now"));
+		assertTrue(names(auction).containsAll(List.of("Quality", "Floor obtained", "Lowest BIN", "Median", "Craft cost", "7-day trend", "NPC price")));
+		assertFalse(names(auction).contains("Volume"), "no number for its volume here: the line is left out");
+		assertFalse(names(auction).contains("Bazaar buy"));
 		List<TooltipLine> bazaar = AddedLines.build(ALL, bazaar(), PriceText.Style.SHORT);
-		assertTrue(names(bazaar).containsAll(List.of("BAZAAR", "Buy now", "Sell now", "Volume")));
+		assertTrue(names(bazaar).containsAll(List.of("BAZAAR", "Bazaar buy", "Bazaar sell", "Volume")));
 		assertFalse(names(bazaar).contains("Buy order"), "the two prices that are about the same are gone");
 		assertFalse(names(bazaar).contains("Sell offer"));
 		assertFalse(names(bazaar).contains("Lowest BIN"));
@@ -145,11 +147,11 @@ class AddedLinesTest {
 	}
 
 	@Test
-	void missingDataIsADashNeverAValue() {
-		AddedLines.Facts none = new AddedLines.Facts(false, false, 0, "", Double.NaN, "", 0L, Double.NaN, 7, Double.NaN, Double.NaN, Double.NaN, 0d, 0d, 0d, 1, false, Double.NaN, -1L, -1L, AddedLines.Exact.NO, false, false);
+	void aPriceLineShowsOnlyWithANumber() {
+		AddedLines.Facts none = new AddedLines.Facts(false, false, 0, "", Double.NaN, "", 0L, Double.NaN, 7, Double.NaN, Double.NaN, Double.NaN, 0d, 0d, 0d, 1, false, Double.NaN, -1L, -1L, AddedLines.Exact.NO, false, false, false, "");
 		List<TooltipLine> lines = AddedLines.build(ALL, none, PriceText.Style.SHORT);
-		for (String name : List.of("Lowest BIN", "Median", "Sold", "Craft cost", "7-day trend", "NPC price")) {
-			assertEquals("—", value(lines, name), name);
+		for (String name : List.of("Lowest BIN", "Median", "Volume", "Craft cost", "7-day trend", "NPC price")) {
+			assertFalse(names(lines).contains(name), name + ": no line without a number, never a made-up value");
 		}
 		assertEquals(List.of(), lines.stream().filter(line -> line.kind() == TooltipLine.Kind.FOOTNOTE).toList());
 	}
@@ -160,11 +162,11 @@ class AddedLinesTest {
 		TooltipLine heading = plain.stream().filter(line -> line.kind() == TooltipLine.Kind.HEADING).findFirst().orElseThrow();
 		assertEquals("BAZAAR", heading.text());
 		assertEquals("Shift: ×23", heading.value(), "a hint without Shift");
-		assertEquals("258.4k", value(plain, "Buy now"), "per item");
+		assertEquals("258.4k", value(plain, "Bazaar buy"), "per item");
 		List<TooltipLine> stack = AddedLines.build(ALL, bazaar(23, true), PriceText.Style.SHORT);
 		assertTrue(names(stack).contains("BAZAAR · ×23"));
-		assertEquals("5.94M", value(stack, "Buy now"));
-		assertEquals("5.79M", value(stack, "Sell now"));
+		assertEquals("5.94M", value(stack, "Bazaar buy"));
+		assertEquals("5.79M", value(stack, "Bazaar sell"));
 		assertEquals("1.00M", value(stack, "Volume"), "kept as it is");
 	}
 
@@ -211,7 +213,7 @@ class AddedLinesTest {
 
 	@Test
 	void whatIsStillToComeIsMarkedAndWhatIsNotKnownIsADash() {
-		AddedLines.Facts loading = new AddedLines.Facts(false, false, 0, "", Double.NaN, "", 0L, Double.NaN, 7, Double.NaN, Double.NaN, Double.NaN, 0d, 0d, 0d, 1, false, Double.NaN, -1L, -1L, new AddedLines.Exact(true, true, true), false, true);
+		AddedLines.Facts loading = new AddedLines.Facts(false, false, 0, "", Double.NaN, "", 0L, Double.NaN, 7, Double.NaN, Double.NaN, Double.NaN, 0d, 0d, 0d, 1, false, Double.NaN, -1L, -1L, new AddedLines.Exact(true, true, true), false, true, false, "");
 		List<TooltipLine> lines = AddedLines.build(ALL, loading, PriceText.Style.SHORT);
 		assertEquals("…", value(lines, "Lowest BIN"));
 		assertEquals("…", value(lines, "Median"));

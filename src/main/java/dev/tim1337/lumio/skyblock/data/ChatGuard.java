@@ -35,6 +35,15 @@ public final class ChatGuard {
 		return TextColors.noColors(text).stripLeading().startsWith("Party > ");
 	}
 
+	/**
+	 * @return whether a chat message is a player's line that someone in the same lobby wrote: party chat or public chat, never guild, co-op or
+	 *         private messages, which may come from anywhere
+	 */
+	public static boolean fromLobby(String text) {
+		String plain = TextColors.noColors(text).stripLeading();
+		return plain.startsWith("Party > ") || PUBLIC.matcher(plain).find();
+	}
+
 	/** Runs a chat reader: an error in it is logged once and skipped, so it can never interrupt the game's handling of the message. */
 	public static void read(String reader, Runnable action) {
 		Guard.run(reader, action);

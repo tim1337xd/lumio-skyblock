@@ -40,6 +40,11 @@ public final class PetIcons {
 	private static Object lastAsked;
 	private static ItemStack lastIcon = ItemStack.EMPTY;
 	private static long lastAskedAt;
+	/** The heads the player's pets really have, per profile and pet: from the Pets menu, or from the pet beside the player. */
+	private static final PetHeads HEADS = new PetHeads();
+	/** The head made from a remembered texture, and the texture it was made from. */
+	private static ItemStack rememberedIcon = ItemStack.EMPTY;
+	private static String rememberedTexture = "";
 
 	private PetIcons() {
 	}
@@ -91,6 +96,30 @@ public final class PetIcons {
 		version++;
 	}
 
+	/** @return the heads remembered per profile and pet */
+	public static PetHeads heads() {
+		return HEADS;
+	}
+
+	/**
+	 * Which head a pet is drawn with, best first: its own item from the Pets menu when that is a head with a texture (what that menu shows, its
+	 * skin's); else the head remembered for the pet (from the menu before, or from the pet beside the player); else the default made for its type.
+	 *
+	 * @param ownTexture the texture of the pet's own menu item, "" without one
+	 * @param remembered the texture remembered for the pet, "" for none
+	 * @return 0 for the pet's own item, 1 for the remembered head, 2 for the default
+	 */
+	static int headSource(String ownTexture, String remembered) {
+		if (!ownTexture.isEmpty()) {
+			return OWN_ITEM;
+		}
+		return remembered.isEmpty() ? DEFAULT_HEAD : REMEMBERED;
+	}
+
+	static final int OWN_ITEM = 0;
+	static final int REMEMBERED = 1;
+	static final int DEFAULT_HEAD = 2;
+
 	/** @return the icon of a pet item, made as for any pet; the item itself if it is no pet or no icon can be made */
 	public static ItemStack icon(ItemStack stack) {
 		PetIdentity pet = of(stack);
@@ -112,14 +141,28 @@ public final class PetIcons {
 		if (owner == lastAsked && now - lastAskedAt < RECHECK_MILLIS) {
 			return lastIcon;
 		}
-		PetIdentity pet = item.isEmpty() ? null : of(item);
-		if (pet == null) {
-			pet = PetIdentity.ofName(name, PetTracker.rarityName(color));
-		}
-		ItemStack icon = pet == null ? ItemStack.EMPTY : icon(pet);
 		lastAsked = owner;
 		lastAskedAt = now;
-		lastIcon = icon.isEmpty() ? item : icon;
+		// the pet's real head before the default of its type: its own menu item, then the head remembered for it
+		String remembered = HEADS.texture(PetTracker.profileName(), name, color);
+		switch (headSource(SkullTextures.propertyOf(item), remembered)) {
+			case OWN_ITEM -> lastIcon = item;
+			case REMEMBERED -> {
+				if (!remembered.equals(rememberedTexture)) {
+					rememberedTexture = remembered;
+					rememberedIcon = SkullTextures.head(remembered);
+				}
+				lastIcon = rememberedIcon;
+			}
+			default -> {
+				PetIdentity pet = item.isEmpty() ? null : of(item);
+				if (pet == null) {
+					pet = PetIdentity.ofName(name, PetTracker.rarityName(color));
+				}
+				ItemStack icon = pet == null ? ItemStack.EMPTY : icon(pet);
+				lastIcon = icon.isEmpty() ? item : icon;
+			}
+		}
 		return lastIcon;
 	}
 
@@ -196,7 +239,7 @@ public final class PetIcons {
 
 	/** @return a counter that goes up whenever an icon was made or a real head seen, to save then */
 	public static int version() {
-		return version;
+		return version + HEADS.version();
 	}
 
 	/** @return the icons as "look, variant, texture" by key, and the real heads as "look, texture" by "real|" key, for the settings file */

@@ -42,7 +42,7 @@ public class TarantulaHelperFeature extends AddonFeature {
 	}
 
 	public TarantulaHelperFeature() {
-		super("tarantula_helper", "Tarantula helper", "Helpers for the Tarantula Broodfather: its egg sacs outlined, so they are easy to shoot.", false);
+		super("tarantula_helper", "Tarantula helper", "Egg sacs outlined, easy to shoot.", false);
 		iconRgb(SystemColors.RED_RGB);
 		iconName("paw");
 		summary("Outlines the egg sacs of your boss");

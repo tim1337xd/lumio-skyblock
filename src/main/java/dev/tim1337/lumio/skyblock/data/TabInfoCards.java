@@ -1,10 +1,11 @@
 package dev.tim1337.lumio.skyblock.data;
 
-import dev.tim1337.lumio.api.experimental.util.Debug;
-import dev.tim1337.lumio.api.experimental.util.ScoreLines;
 import dev.tim1337.lumio.api.TabCard;
+import dev.tim1337.lumio.api.experimental.debug.DebugHooks;
+import dev.tim1337.lumio.api.experimental.util.ScoreLines;
 import dev.tim1337.lumio.api.experimental.util.ServerText;
 import dev.tim1337.lumio.api.experimental.util.TabSections;
+import dev.tim1337.lumio.skyblock.SkyBlockDebug;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
@@ -37,7 +38,7 @@ public final class TabInfoCards {
 
 	/** @return the cards of the lines, in their order */
 	public static List<TabCard> read(List<Component> lines) {
-		return read(lines, Debug.on());
+		return read(lines, DebugHooks.ACTIVE);
 	}
 
 	/** @param log whether what the debug switch asks for is logged */
@@ -105,7 +106,8 @@ public final class TabInfoCards {
 			cards.add(new TabCard(title, rows));
 		}
 		// the Stats card holds only stats: what the server writes after them without a heading of its own goes to Other
-		return TabStats.sorted(cards, log);
+		// every card gets its fixed place by its kind, and none is without a title: lines under no heading go to Other
+		return TabCardOrder.placed(TabStats.sorted(cards, log), log);
 	}
 
 	/** @return whether a line starts a section: it does not start with a space and its first text is bold */
@@ -128,14 +130,18 @@ public final class TabInfoCards {
 	/** Under the debug switch, once per text: the raw lines of a section that lists names, to send when a form is still missed. */
 	private static void logNames(String section, String raw) {
 		if (LOGGED.size() < MOST_LOGGED && LOGGED.add(section + raw)) {
-			Debug.log("Tab list section {}: {} = {}", section, raw, ScoreLines.codes(raw));
+			if (DebugHooks.ACTIVE) {
+				DebugHooks.log(SkyBlockDebug.TAB, "Tab list section {}: {} = {}", section, raw, ScoreLines.codes(raw));
+			}
 		}
 	}
 
 	/** Under the debug switch, once per text: a line with a character that is not plain text, as the server sends it, for what the font may not have. */
 	private static void logSymbols(String raw) {
 		if (!raw.chars().allMatch(c -> c >= ' ' && c < 0x7F && c != ';') && LOGGED.size() < MOST_LOGGED && LOGGED.add(raw)) {
-			Debug.log("Tab list line with symbols: {} = {}", raw, ScoreLines.codes(raw));
+			if (DebugHooks.ACTIVE) {
+				DebugHooks.log(SkyBlockDebug.TAB, "Tab list line with symbols: {} = {}", raw, ScoreLines.codes(raw));
+			}
 		}
 	}
 

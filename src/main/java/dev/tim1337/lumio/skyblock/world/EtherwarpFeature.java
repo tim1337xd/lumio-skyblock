@@ -40,10 +40,10 @@ public class EtherwarpFeature extends AddonFeature {
 		Choice.Style.SEGMENTED), "General");
 	private final ColorChoice color = add(make().color("color", Component.literal("Color"), SystemColors.GREEN_RGB).followsMenu(), "General");
 	private final Toggle showFail = add(make().toggle("show_fail", Component.literal("Show when it fails"), true), "General");
-	private final ColorChoice failColor = add(make().color("fail_color", Component.literal("Color when it fails"), SystemColors.RED_RGB),
+	private final ColorChoice failColor = add(make().color("fail_color", Component.literal("Color when it fails"), SystemColors.RED_RGB).ownColorOnly(),
 		"General");
 	private final Toggle fullBlock = add(make().toggle("full_block", Component.literal("Full block"), false), "General",
-		"Off: only what is there, such as a slab or snow");
+		"Off: the real shape (slabs, snow)");
 
 	private final EtherwarpTarget target = new EtherwarpTarget();
 
@@ -57,10 +57,10 @@ public class EtherwarpFeature extends AddonFeature {
 	private long lastGameTime;
 
 	public EtherwarpFeature() {
-		super("etherwarp", "Etherwarp", "Where your etherwarp lands, and red where it would fail.", false);
+		super("etherwarp", "Etherwarp", "Where your etherwarp lands.", false);
 		iconRgb(SystemColors.PURPLE_RGB);
 		iconName("portal");
-		summary("Where your etherwarp lands, red if it would fail");
+		summary("Where your etherwarp lands");
 		failColor.under(showFail);
 	}
 

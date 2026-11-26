@@ -4,7 +4,6 @@ import dev.tim1337.lumio.api.draw.Canvas;
 import dev.tim1337.lumio.api.experimental.draw.Draw;
 import dev.tim1337.lumio.api.experimental.draw.HudTheme;
 import dev.tim1337.lumio.api.feature.AddonPanel;
-import dev.tim1337.lumio.api.feature.SettingGroup;
 import dev.tim1337.lumio.api.setting.Choice;
 import dev.tim1337.lumio.api.setting.Toggle;
 
@@ -30,8 +29,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
-
-import java.util.List;
 
 /**
  * Shows the four Hypixel SkyBlock equipment slots (necklace, cloak, belt, gloves) like the armor: as a HUD panel, and next to the inventory if
@@ -65,13 +62,16 @@ public class EquipmentHudFeature extends AddonPanel {
 	private final Toggle overGame = add(make().toggle("over_game", Component.literal("On the HUD"), true), "General");
 
 	public EquipmentHudFeature() {
-		super("equipment_hud", "Equipment", "The necklace, cloak, belt and gloves of SkyBlock, as the armor is shown.", false, Anchor.LEFT, true, 12f, 40f);
+		super("equipment_hud", "Equipment", "Necklace, cloak, belt and gloves, like armor.", false, Anchor.LEFT, true, 12f, 40f);
+		pageGroup("On screen");
 		iconRgb(SystemColors.YELLOW_RGB);
 		iconName("amulet");
 		summary("Your necklace, cloak, belt and gloves");
 		withoutHeader();
 		offerHeader();
 		offerNoBackground();
+		// beside the inventory it is always a column
+		direction.visibleWhen(overGame::get);
 	}
 
 	private boolean vertical() {
@@ -217,6 +217,12 @@ public class EquipmentHudFeature extends AddonPanel {
 		return true;
 	}
 
+	/** Used with the mouse while an inventory is open: it stays as it is behind menus. */
+	@Override
+	public boolean usedInMenus() {
+		return true;
+	}
+
 	/** Draws the four slots as a column inside the styled inventory: a frame each, slightly lighter than other slots, with the worn item. */
 	public void drawInline(Canvas ui, GuiGraphicsExtractor graphics, Minecraft client, int x, int y) {
 		drawnInInventory(graphics, x - 1, y - 1, 20, 74);
@@ -264,6 +270,7 @@ public class EquipmentHudFeature extends AddonPanel {
 		}
 		Draw.setZoom(1f);
 		Canvas ui = Draw.hudCanvas(graphics, accentArgb(), 0f, false);
+		ScreenRoom.take(left, top, width, height);
 		drawnInInventory(graphics, left, top, width, height);
 		var pose = graphics.pose();
 		pose.pushMatrix();

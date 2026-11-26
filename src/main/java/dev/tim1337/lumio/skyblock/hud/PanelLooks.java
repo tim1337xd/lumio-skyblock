@@ -74,9 +74,8 @@ public final class PanelLooks {
 		}
 	}
 
-	/** The pest panel: the Garden's plot map, a ring with the next pest's time, or simple rows. */
+	/** The pest panel: a ring with the next pest's time, or one simple row. */
 	public enum Pests {
-		MAP("Map"),
 		RING("Ring"),
 		SIMPLE("Simple");
 

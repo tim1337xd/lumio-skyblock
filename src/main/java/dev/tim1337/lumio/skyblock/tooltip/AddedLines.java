@@ -1,6 +1,7 @@
 package dev.tim1337.lumio.skyblock.tooltip;
 
 import dev.tim1337.lumio.api.TooltipLine;
+import dev.tim1337.lumio.skyblock.data.AuctionPrices;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,6 +14,8 @@ final class AddedLines {
 	static final String DUNGEON = "dungeon";
 	static final String LOWEST_BIN = "lowest_bin";
 	static final String MEDIAN = "median";
+	/** The attribution SkyCofl asks for under its numbers. */
+	static final String PRICES_BY = "Prices: SkyCofl";
 	static final String SOLD = "sold";
 	static final String CRAFT = "craft";
 	static final String BAZAAR = "bazaar";
@@ -37,9 +40,11 @@ final class AddedLines {
 	 * @param shift      whether Shift is held: the prices are then for the whole stack
 	 * @param soulbound  whether it can't be sold, so that its prices are only its base item's
 	 * @param loading    whether its prices may still come: what is not known is then shown as such
+	 * @param bazaarNote what its Bazaar prices are, beside them: "sum of enchantments" for a book of several, else ""
 	 */
 	record Facts(boolean bazaar, boolean dungeon, int quality, String floor, double lowest, String lowestFrom, long lowestAge, double median, int medianDays, double soldPerDay, double craft, double trend,
-				 double buyNow, double sellNow, double volumeWeek, int count, boolean shift, double npc, long marketAge, long bazaarAge, Exact exact, boolean soulbound, boolean loading) {
+				 double buyNow, double sellNow, double volumeWeek, int count, boolean shift, double npc, long marketAge, long bazaarAge, Exact exact, boolean soulbound, boolean loading,
+				 boolean medianMeasured, String bazaarNote) {
 	}
 
 	/**
@@ -56,6 +61,10 @@ final class AddedLines {
 	/** The price is the item type's, not this exact item's. */
 	static final String BASE_ITEM = "(base item)";
 	static final String SOULBOUND = "Soulbound: can't be sold";
+	/** A book of several enchantments: its price is theirs, added up. */
+	static final String SUM_OF_ENCHANTMENTS = "sum of enchantments";
+	/** The dungeon item's floor: no price, so a "—" there says the floor is not known and stays. */
+	private static final String FLOOR_ROW = "Floor obtained";
 	/** What a price shows while it may still come. */
 	static final String WAITING = "…";
 	private static final String BAZAAR_TITLE = "BAZAAR";
@@ -78,7 +87,7 @@ final class AddedLines {
 			if (id.equals(DUNGEON)) {
 				if (facts.dungeon()) {
 					rows.add(TooltipLine.row("Quality", facts.quality() + " / " + DungeonData.MOST_QUALITY, ""));
-					rows.add(TooltipLine.row("Floor obtained", facts.floor(), ""));
+					rows.add(TooltipLine.row(FLOOR_ROW, facts.floor(), ""));
 				}
 				continue;
 			}
@@ -99,12 +108,29 @@ final class AddedLines {
 			switch (id) {
 				case LOWEST_BIN -> rows.add(TooltipLine.row("Lowest BIN", price(facts.lowest() * times, facts, style), facts.exact().lowestById() ? BASE_ITEM : ""));
 				case MEDIAN -> rows.add(medianRow(facts, times, style));
-				case SOLD -> rows.add(TooltipLine.row("Sold", PriceText.number(facts.soldPerDay(), style), "per day"));
+				case SOLD -> rows.add(TooltipLine.row("Volume", volume(facts.volumeWeek(), facts, style), AuctionPrices.DAYS + " days"));
 				case CRAFT -> rows.add(TooltipLine.row("Craft cost", PriceText.number(facts.craft() * times, style), facts.exact().forThisItem() ? "with upgrades" : ""));
 				case BAZAAR -> addBazaar(rows, facts, times, style);
 				case TREND -> rows.add(trend(facts.trend()));
 				case NPC -> rows.add(TooltipLine.row("NPC price", PriceText.number(facts.npc() * times, style), ""));
 				default -> {
+				}
+			}
+		}
+		// a price line shows only with a number (or while it is still coming): no "—" rows, and no heading left without a line under it
+		rows.removeIf(row -> row.kind() == TooltipLine.Kind.ROW && TooltipLine.MISSING.equals(row.value()) && !row.text().equals(FLOOR_ROW));
+		for (int i = rows.size() - 1; i >= 0; i--) {
+			if (rows.get(i).kind() == TooltipLine.Kind.HEADING && (i + 1 >= rows.size() || rows.get(i + 1).kind() != TooltipLine.Kind.ROW)) {
+				rows.remove(i);
+			}
+		}
+		// the attribution SkyCofl asks for wherever its auction numbers are shown
+		if (!facts.bazaar()) {
+			for (TooltipLine row : rows) {
+				if ((row.text().equals("Lowest BIN") || row.text().equals("Median") || row.text().equals("Volume")) && !row.value().equals(TooltipLine.MISSING)
+					&& !row.value().equals(WAITING)) {
+					rows.add(TooltipLine.footnote(PRICES_BY));
+					break;
 				}
 			}
 		}
@@ -130,9 +156,14 @@ final class AddedLines {
 	}
 
 	private static void addBazaar(List<TooltipLine> rows, Facts facts, int times, PriceText.Style style) {
-		rows.add(TooltipLine.row("Buy now", PriceText.number(facts.buyNow() * times, style), ""));
-		rows.add(TooltipLine.row("Sell now", PriceText.number(facts.sellNow() * times, style), ""));
-		rows.add(TooltipLine.row("Volume", PriceText.number(facts.volumeWeek(), style), "per week"));
+		rows.add(TooltipLine.row("Bazaar buy", PriceText.number(facts.buyNow() * times, style), facts.bazaarNote()));
+		rows.add(TooltipLine.row("Bazaar sell", PriceText.number(facts.sellNow() * times, style), facts.bazaarNote()));
+		rows.add(TooltipLine.row("Volume", volume(facts.volumeWeek(), facts, style), AuctionPrices.DAYS + " days"));
+	}
+
+	/** @return a count of sales, still to come, or missing (never a made-up number) */
+	private static String volume(double value, Facts facts, PriceText.Style style) {
+		return Double.isNaN(value) ? facts.loading() ? WAITING : TooltipLine.MISSING : PriceText.number(value, style);
 	}
 
 	/** @return a price, or that it is still to come */
@@ -146,7 +177,9 @@ final class AddedLines {
 		if (facts.exact().forThisItem()) {
 			return TooltipLine.row("Median", price(median, facts, style), facts.exact().medianById() ? BASE_ITEM : "");
 		}
-		return TooltipLine.row("Median", estimate(median, facts, style), facts.medianDays() == 1 ? "1 day" : facts.medianDays() + " days");
+		// SkyCofl's own median of the span is no estimate; one worked out from the price history is
+		String value = facts.medianMeasured() ? price(median, facts, style) : estimate(median, facts, style);
+		return TooltipLine.row("Median", value, facts.medianDays() == 1 ? "1 day" : facts.medianDays() + " days");
 	}
 
 	private static String estimate(double median, Facts facts, PriceText.Style style) {
